@@ -13,6 +13,7 @@ import (
 	"net/textproto"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -170,9 +171,111 @@ func sendJsonImg() {
 	fmt.Printf("json-img send msg response: %s\n", data)
 }
 
+func sendFormFile() {
+	var client http.Client
+
+	// 要上传的文件
+	file, _ := os.Open(*file_path)
+	defer file.Close()
+
+	// 设置body数据并写入缓冲区
+	bodyBuff := bytes.NewBufferString("") //bodyBuff := &bytes.Buffer{}
+	bodyWriter := multipart.NewWriter(bodyBuff)
+
+	// math/rand
+	// _ = bodyWriter.SetBoundary(fmt.Sprintf("-----------------------------%d", rand.Int()))
+	// 加入图片二进制
+	h := make(textproto.MIMEHeader)
+	h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, escapeQuotes("file"), escapeQuotes(filepath.Base(file.Name()))))
+	h.Set("Content-Type", "text/plain")
+	part, err := bodyWriter.CreatePart(h)
+	if err != nil {
+		log.Fatalf("CreatePart faild: %s\n", err)
+	}
+	_, err = io.Copy(part, file)
+	if err != nil {
+		log.Fatalf("CreatePart faild: %s\n", err)
+	}
+	// 其他字段
+	err = bodyWriter.WriteField("wxid", *wxid)
+	if err != nil {
+		log.Fatalf("CreatePart faild: %s\n", err)
+	}
+
+	// 填充boundary结尾
+	bodyWriter.Close()
+
+	// 组合创建数据包
+	req, err := http.NewRequest("POST", *addr+"/sendfilemsg", bodyBuff)
+	if err != nil {
+		log.Fatalf("CreatePart faild: %s\n", err)
+	}
+
+	req.ContentLength = int64(bodyBuff.Len())
+	req.Header.Set("Content-Type", bodyWriter.FormDataContentType())
+
+	response, err := client.Do(req)
+	if err != nil {
+		log.Fatalf("CreatePart faild: %s\n", err)
+	}
+
+	data, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		log.Fatalf("CreatePart faild: %s\n", err)
+	}
+
+	fmt.Printf("form-file send msg response: %s\n", data)
+}
+
+func sendJsonFile() {
+	var client http.Client
+
+	type FileMsg struct {
+		Wxid     string `json:"wxid"`
+		File     []byte `json:"file"`
+		FileName string `json:"filename"`
+	}
+
+	data, err := ioutil.ReadFile(*file_path)
+	if err != nil {
+		log.Fatalf("read file faild: %s\n", err)
+	}
+
+	fm := FileMsg{
+		Wxid:     *wxid,
+		File:     data,
+		FileName: path.Base(*file_path),
+	}
+
+	j_data, err := json.Marshal(fm)
+	if err != nil {
+		log.Fatalf("json Marshal faild: %s\n", err)
+	}
+
+	req, err := http.NewRequest("POST", *addr+"/sendfilemsg", bytes.NewReader(j_data))
+	if err != nil {
+		log.Fatalf("json Marshal faild: %s\n", err)
+	}
+	// req.ContentLength = int64(bodyBuff.Len())
+	req.Header.Set("Content-Type", "application/json")
+
+	response, err := client.Do(req)
+	if err != nil {
+		log.Fatalf("json Marshal faild: %s\n", err)
+	}
+
+	data, err = ioutil.ReadAll(response.Body)
+	if err != nil {
+		log.Fatalf("CreatePart faild: %s\n", err)
+	}
+
+	fmt.Printf("json-file send msg response: %s\n", data)
+}
+
 var addr = flag.String("addr", "http://localhost:8080", "Http service address")
-var mode = flag.String("mode", "json-img", "Select the startup mode. The optional values are ws, http, form img, and json img")
+var mode = flag.String("mode", "json-file", "Select the startup mode. The optional values are ws, http, form-img, json-img, form-file and json-file")
 var img_path = flag.String("img", "../1.jpg", "Specify image path when sending image messages")
+var file_path = flag.String("file", "../1.txt", "Send file message specifying file path")
 var wxid = flag.String("wxid", "47331170911@chatroom", "Send message recipient's wxid")
 
 func main() {
@@ -188,5 +291,9 @@ func main() {
 		sendFormImg()
 	case "json-img":
 		sendJsonImg()
+	case "form-file":
+		sendFormFile()
+	case "json-file":
+		sendJsonFile()
 	}
 }
