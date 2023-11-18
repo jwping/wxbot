@@ -22,8 +22,15 @@ import (
 )
 
 type Message struct {
-	Wxid    string `json:"wxid"`
-	Content string `json:"content"`
+	Wxid               string `json:"wxid"`
+	Content            string `json:"content"`
+	ToUser             string `json:"toUser"`
+	Msgid              uint64 `json:"msgid"`
+	OriginMsg          string `json:"originMsg"`
+	ChatRoomSourceWxid string `json:"chatRoomSourceWxid"`
+	MsgSource          string `json:"msgSource"`
+	Type               uint32 `json:"type"`
+	DisplayMsg         string `json:"displayMsg"`
 }
 
 func wsClient() {
@@ -272,7 +279,7 @@ func sendJsonFile() {
 	fmt.Printf("json-file send msg response: %s\n", data)
 }
 
-var addr = flag.String("addr", "http://localhost:8080", "Http service address")
+var addr = flag.String("addr", "localhost:8080", "Http service address")
 var mode = flag.String("mode", "json-file", "Select the startup mode. The optional values are ws, http, form-img, json-img, form-file and json-file")
 var img_path = flag.String("img", "../1.jpg", "Specify image path when sending image messages")
 var file_path = flag.String("file", "../1.txt", "Send file message specifying file path")
