@@ -31,6 +31,7 @@ type Message struct {
 	MsgSource          string `json:"msgSource"`
 	Type               uint32 `json:"type"`
 	DisplayMsg         string `json:"displayMsg"`
+	ImgData            string `json:"imgData"`
 }
 
 func wsClient() {
@@ -234,14 +235,15 @@ func sendFormFile() {
 	fmt.Printf("form-file send msg response: %s\n", data)
 }
 
+type FileMsg struct {
+	Wxid     string `json:"wxid"`
+	Path     string `json:"path"`
+	File     []byte `json:"file"`
+	FileName string `json:"filename"`
+}
+
 func sendJsonFile() {
 	var client http.Client
-
-	type FileMsg struct {
-		Wxid     string `json:"wxid"`
-		File     []byte `json:"file"`
-		FileName string `json:"filename"`
-	}
 
 	data, err := ioutil.ReadFile(*file_path)
 	if err != nil {
@@ -281,8 +283,8 @@ func sendJsonFile() {
 
 var addr = flag.String("addr", "localhost:8080", "Http service address")
 var mode = flag.String("mode", "json-file", "Select the startup mode. The optional values are ws, http, form-img, json-img, form-file and json-file")
-var img_path = flag.String("img", "../1.jpg", "Specify image path when sending image messages")
-var file_path = flag.String("file", "../1.txt", "Send file message specifying file path")
+var img_path = flag.String("img", "../public/1.jpg", "Specify image path when sending image messages")
+var file_path = flag.String("file", "../public/1.txt", "Send file message specifying file path")
 var wxid = flag.String("wxid", "47331170911@chatroom", "Send message recipient's wxid")
 
 func main() {

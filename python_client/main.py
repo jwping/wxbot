@@ -7,6 +7,18 @@ from absl import app,flags
 
 FLAGS = flags.FLAGS
 
+
+def sendtxtmsg():
+    data = {
+        "wxid": FLAGS.wxid,
+        "content": "测试内容\nhello world!",
+    }
+    ret = requests.post(url=FLAGS.addr + "/sendtxtmsg", json=data)
+    if ret.status_code == 200:
+        print("success: %s" % (ret.text))
+    else:
+        print("faild: %s" % (ret.text))
+
 def sendFormImg():
     data = {"wxid":FLAGS.wxid}
     files = {
@@ -60,8 +72,8 @@ def sendJsonFile():
 
 flags.DEFINE_string("addr", "http://localhost:8080", "Http service address")
 flags.DEFINE_string("mode", "json-file", "Select the startup mode. The optional values are ws, http, form-img, json-img, form-file and json-file")
-flags.DEFINE_string("img", "../1.jpg", "Specify image path when sending image messages")
-flags.DEFINE_string("file", "../1.txt", "Send file message specifying file path")
+flags.DEFINE_string("img", "../public/1.jpg", "Specify image path when sending image messages")
+flags.DEFINE_string("file", "../public/1.txt", "Send file message specifying file path")
 flags.DEFINE_string("wxid", "47331170911@chatroom", "Send message recipient's wxid")
 
 def main(argv):
@@ -75,4 +87,5 @@ def main(argv):
         sendFormFile()
 
 if __name__ == '__main__':
-    app.run(main)
+    # app.run(main)
+    sendtxtmsg()
