@@ -314,9 +314,9 @@ curl -XDELETE -d'{"url": "http://127.0.0.1:8081/callback"}' 10.1.12.12:8080/sync
 ## 3、赞助码
 **如果觉得本项目对你有帮助，可以打赏一下作者，毕竟开源不易**
 
-<img src=public/wechat_collection.jpg width=40% />
+<img src=https://raw.githubusercontent.com/jwping/wxbot/main/public/wechat_collection.jpg width=40% />
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-<img src=public/alipay_collection.jpg width=40% />
+<img src=https://raw.githubusercontent.com/jwping/wxbot/main/public/alipay_collection.jpg width=40% />
 
 ## 4、微信多开高级用法
 这里仅仅给出一种为每个wxbot指定端口和回调地址等使用思路：
