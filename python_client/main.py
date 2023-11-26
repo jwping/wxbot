@@ -47,7 +47,8 @@ def sendJsonImg():
 def sendFormFile():
     data = {"wxid":FLAGS.wxid}
     files = {
-                'file': open(FLAGS.file, 'rb')
+                'file': open(FLAGS.file, 'rb'),
+                'clear': "false",
             }
     ret = requests.post(url=FLAGS.addr + "/sendfilemsg", data=data, files=files)
     if ret.status_code == 200:
@@ -87,5 +88,4 @@ def main(argv):
         sendFormFile()
 
 if __name__ == '__main__':
-    # app.run(main)
-    sendtxtmsg()
+    app.run(main)

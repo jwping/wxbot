@@ -142,6 +142,7 @@ func sendJsonImg() {
 	type ImgInfo struct {
 		Wxid  string `json:"wxid"`
 		Image []byte `json:"image"`
+		Clear bool   `json:"clear"`
 	}
 
 	data, err := ioutil.ReadFile(*img_path)
@@ -152,6 +153,7 @@ func sendJsonImg() {
 	ii := ImgInfo{
 		Wxid:  *wxid,
 		Image: data,
+		Clear: false,
 	}
 
 	j_data, err := json.Marshal(ii)
@@ -210,6 +212,11 @@ func sendFormFile() {
 		log.Fatalf("CreatePart faild: %s\n", err)
 	}
 
+	err = bodyWriter.WriteField("clear", "true")
+	if err != nil {
+		log.Fatalf("CreatePart faild: %s\n", err)
+	}
+
 	// 填充boundary结尾
 	bodyWriter.Close()
 
@@ -237,9 +244,10 @@ func sendFormFile() {
 
 type FileMsg struct {
 	Wxid     string `json:"wxid"`
-	Path     string `json:"path"`
+	Path     string `json:"path,omitempty"`
 	File     []byte `json:"file"`
 	FileName string `json:"filename"`
+	Clear    bool   `json:"clear"`
 }
 
 func sendJsonFile() {
@@ -254,6 +262,7 @@ func sendJsonFile() {
 		Wxid:     *wxid,
 		File:     data,
 		FileName: path.Base(*file_path),
+		Clear:    false,
 	}
 
 	j_data, err := json.Marshal(fm)

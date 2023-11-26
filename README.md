@@ -51,7 +51,7 @@ Options:
 > **配置文件为json格式，默认不自动创建！**
 > **配置文件优先级：[wxid].json > wxbot.json > 无配置文件时的默认值**
 > 
-> **这样设计配置文件优先级是为了适配微信多开而不那么优雅的实现方式，具体您可以看 3. 多开高级用法**
+> **这样设计配置文件优先级是为了适配微信多开而不那么优雅的实现方式，具体您可以看 `4. 多开高级用法` 了解更多**
 
 #### 2.2.1、配置文件示例
 ```json
@@ -63,7 +63,22 @@ Options:
             "url": "http://localhost:8081/callback"
         }
     ],
-    "hide-module": false
+    "hide-module": false,
+    "authorization": {
+        "enable": false,
+        "users": [
+            {
+                "user": "admin",
+                "password": "123",
+                "token": "token123"
+            },
+            {
+                "user": "user",
+                "password": "321",
+                "token": "token321"
+            }
+        ]
+    }
 }
 ```
 * **addr:** wxbot服务监听地址（固定为ip:port形式）
@@ -72,6 +87,12 @@ Options:
   * **timeout：** 回调超时时间
 **Tips：这里的`http://localhost:8081/callback`只是一个例子，而并非必须的，如果您未启动此回调地址，那么请删除它！**
 * **hide-module：** 是否隐藏注入，当开启隐藏注入时 inject.exe 的注入卸载将不可用，此时您只能通过重启微信的方式来卸载DLL！
+* **authorization：** 鉴权 **鉴权使用方法请您至下方 `5、鉴权` 了解更多**
+  * **enable：** 是否开启鉴权
+  * **users：** 用户列表（这是一个对象数组）
+    * **user：** 用户名
+    * **password：** 密码
+    * **token：** 登陆后的token
 
 **实际上配置文件中的所有字段都是非必填项，它们都可以独立存在！**
 
@@ -129,11 +150,12 @@ GET /contacts
 POST /sendtxtmsg
 **请求字段**
 * wxid *string*
-* content *string*：发送消息内容（如果是群聊组消息并需要发送艾特时，此content字段中需要有对应数量的`@`，这一点很重要！ 如果您不理解，请继续看下面的Tips！）
+* content *string*：发送消息内容（如果是群聊组消息并需要发送艾特时，**此content字段中需要有对应数量的`@[自定义被艾特人的昵称，不得少于2个字符] [每个艾特后都需要一个空格以进行分隔（包括最后一个艾特！）]`，这一点很重要！ 如果您不理解，请继续看下面的Tips！**）
 * [atlist] *array\<string\>*：如果是群聊组消息并需要发送艾特时，此字段是一个被艾特人的数组
 
-**Tips：如果是群聊艾特消息，那么`content`字段中的`@`艾特符号数量需要和`atlist`中的被艾特人数组长度一致，例如：**
-`{"wxid": "xx@chatroom", "content": "@1 @2 @3 测试艾特消息", "atlist": ["wxid_a", "wxid_b", "wxid_c"]}`
+**Tips：如果是群聊艾特消息，那么`content`字段中的`@`艾特符号数量需要和`atlist`中的被艾特人数组长度一致，简单来说，就是`atlist`中有多少个被艾特人的`wxid`，那么`content`字段中就需要有多少个艾特组合，位置随意，例如：**
+`{"wxid": "xx@chatroom", "content": "这里@11 只是@22 想告诉你@33 每个被艾特人的位置并不重要", "atlist": ["wxid_a", "wxid_b", "wxid_c"]}`
+**每个被艾特人在`content`中 固定为`@[至少两个字符的被艾特人名] + 一个空格`！**
 
 **响应示例**
 {"code":200,"msg":"success"}
@@ -152,6 +174,7 @@ POST /sendimgmsg
     * wxid *string*
     * path *string*：图片路径（注意，这里的图片路径是bot登陆系统的路径！）
     * image *string*： 图片二进制数据base64编码后字符串
+    * clear *bool*： 指定图片发送后是否需要删除，默认删除 **（需要注意的是，图片文件保存后并没有后缀，这意味着如果您需要查看历史发送图片，那么您需要至`[微信根目录]/temp`自行查看判断图片格式并添加后缀）**
 
 * **form-data表单**
     符合标准`form-data`数据格式，需要参数分别是`wxid`、`path`和`image`
@@ -173,6 +196,7 @@ POST /sendfilemsg
     * path *string*：文件路径（注意，这里的文件路径是bot登陆系统的路径！）
     * file *string*： 文件二进制数据base64编码后字符串
     * filename *string*： 文件名
+    * clear *bool*： 指定文件发送后是否需要删除，默认保留（在`[微信根目录]/temp`）
 * **form-data表单**
     符合标准`form-data`数据格式，需要参数分别是`wxid`、`path`和`image`
 
@@ -292,7 +316,7 @@ curl -XPOST -d'{"url": "http://127.0.0.1:8081/callback", "timeout": 6000}' 127.0
 curl 127.0.0.1:8080/sync-url
 
 # 删除一个已注册的http回调
-curl -XDELETE -d'{"url": "http://127.0.0.1:8081/callback"}' 10.1.12.12:8080/sync-url
+curl -XDELETE -d'{"url": "http://127.0.0.1:8081/callback"}' 127.0.0.1:8080/sync-url
 
 
 # 同步消息回调响应例子（回调消息为JSON格式）
@@ -342,8 +366,38 @@ inject.exe -p [wxid_b的微信PID]
 其中`wxid_a`监听在`8080`端口
 其中`wxid_b`监听在`8081`端口
 
+## 5、鉴权
+> 当您在配置文件中开启了鉴权之后则 **您后续的每个api请求都需要包含鉴权信息！**
+> 这里使用的是`Http Basic Authentication`，您可以先百度去了解一下它，当然，如果您不想了解也没关系，因为它真的很简单
 
-## 5、wxbox.dll、注入器、可用版本微信安装包等获取
+```json
+# 假设您定义一个如下用户：
+{
+    "user": "user2",
+    "password": "321",
+    "token": "token321"
+}
+```
+那么您需要在您后续的每次请求的请求头中加上`Authorization`字段：`Authorization: Basic base64(username:password)`
+例如用curl命令请求的话，它可能长这样：
+```bash
+curl -H "Authorization: Basic dXNlcjI6MzIx" 127.0.0.1:8080/login -v
+
+# response：
+{"code":200,"data":{"token":"token321","user":"user2"},"msg":null}
+```
+这里**引入了一个新的路由`/login`**，但我并不想将他写到上面的路由列表中，因为它真的没什么用，仅仅是在您登陆成功之后返回一个当前的登陆用户名和`token`
+**您在以后每个请求都加上`Authorization: Basic dXNlcjI6MzIx`这个请求头就可以了！**
+
+如果您希望使用`cookie`的方式，那么您可以在`cookie`中指定`token`
+例如，您也可以这样做：
+```bash
+curl --cookie "access_token=token321" 127.0.0.1:8080/userinfo -v
+```
+**如果您不想用设置请求头的方式，那么您也可以在后续的所有请求的`cookie`中指定`access_token`字段即可。** *实际上`cookie`也是`request header`中的一个字段*
+
+
+## 6、wxbox.dll、注入器、可用版本微信安装包等获取
 * **阿里网盘：**
 https://www.aliyundrive.com/s/4eiNnE4hp4n
 提取码: rt25
@@ -352,6 +406,6 @@ https://www.aliyundrive.com/s/4eiNnE4hp4n
 https://pan.baidu.com/s/1cmzXe8AxYvzXWW2WTVCdxQ?pwd=l671 
 提取码：l671
 
-## 6、交流
+## 7、交流
 请添加微信：**Anshan_PL**，备注 **wxbot** 拉微信交流群
 **Tips：此群仅限学习和交流，无其他用处**
