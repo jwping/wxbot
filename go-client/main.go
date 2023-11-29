@@ -111,6 +111,11 @@ func sendFormImg() {
 		log.Fatalf("CreatePart faild: %s\n", err)
 	}
 
+	err = bodyWriter.WriteField("clear", "false")
+	if err != nil {
+		log.Fatalf("CreatePart faild: %s\n", err)
+	}
+
 	// 填充boundary结尾
 	bodyWriter.Close()
 
@@ -212,10 +217,10 @@ func sendFormFile() {
 		log.Fatalf("CreatePart faild: %s\n", err)
 	}
 
-	err = bodyWriter.WriteField("clear", "true")
-	if err != nil {
-		log.Fatalf("CreatePart faild: %s\n", err)
-	}
+	// err = bodyWriter.WriteField("path", "D:\\xxxxxxx")
+	// if err != nil {
+	// 	log.Fatalf("CreatePart faild: %s\n", err)
+	// }
 
 	// 填充boundary结尾
 	bodyWriter.Close()
@@ -259,9 +264,10 @@ func sendJsonFile() {
 	}
 
 	fm := FileMsg{
-		Wxid:     *wxid,
+		Wxid: *wxid,
+		// Path:     "D:\\xxxxxxxxxxx",
 		File:     data,
-		FileName: path.Base(*file_path),
+		FileName: path.Base(filepath.ToSlash(*file_path)),
 		Clear:    false,
 	}
 
@@ -269,6 +275,8 @@ func sendJsonFile() {
 	if err != nil {
 		log.Fatalf("json Marshal faild: %s\n", err)
 	}
+
+	fmt.Printf("j_data: %s\n", j_data)
 
 	req, err := http.NewRequest("POST", *addr+"/sendfilemsg", bytes.NewReader(j_data))
 	if err != nil {

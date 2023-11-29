@@ -5,7 +5,10 @@
 **未经过大量测试，使用远程线程注入方式可能会被报毒（无毒，请放心使用！），也可以尝试其它方式进行注入，注入手段并不重要，只要将wxbot.dll注入到wechat.exe中即可**
 
 ## 免责声明
-本仓库发布的内容，仅用于学习研究，请勿用于非法用途和商业用途！如因此产生任何法律纠纷，均与作者无关！
+**本仓库发布的内容，仅用于学习研究，请勿用于非法用途和商业用途！如因此产生任何法律纠纷，均与作者无关！**
+**无任何后门、木马，也不获取、存储任何信息，请大家在国家法律、法规和腾讯相关原则下学习研究！**
+**不对任何下载和使用者的任何行为负责，请于下载后24小时内删除！**
+
 
 ## 1、运行
 bin目录下有如下两个文件（仅在windows 10 & windows server 2012 R2系统上进行测试）：
@@ -32,6 +35,7 @@ Usage: injector.exe [ OPTIONS ] [ VALUE ]
 Options:
         -p, --pid  [ pid ]              Specify the process number for injection
         -d, --dll  [ path ]             Specify the DLL path to be injected
+        -u, --uninject                  uninject DLL
         -m, --multi                     Remove WeChat multi instance restrictions (allowing multiple instances)
         -s, --silence                   Enable silent mode(without popping up the console)
         -h, --help                      Output Help Information
@@ -112,29 +116,31 @@ Options:
   * **/sendfilemsg**       - 发送文件消息（支持json和form-data表单上传两种方式，json方式请将二进制数据使用base64编码后发送）
   * **/chatroom**          - 获取群聊组信息，包括：管理员、公告、成员列表等
   * **/account_by_wxid**   - WXID反查微信昵称（支持好友和群聊组等）
+  * **/sendcardmsg**       - 发送卡片消息
 
 * **回调注册类（目前仅用来获取微信实时消息 - 同步消息接口，同时支持WebSocket和http两种方式！）**
   * **/ws**            - 注册websocket回调（支持注册多个ws通道）
   * **/sync-url**      - http回调相关（支持注册多个http接口，注册请带上协议头：http/https，注册成功会持久化到配置文件中）
 
 #### 2.2.1、功能类接口
+> **以`[]`中括号括起来的字段为可选字段**
 ##### 2.2.1.1、登陆信息
 **协议信息**
 GET /userinfo
 **响应字段**
-* custom_account *string*: 微信号
+* customAccount *string*: 微信号
 * nickname *string*： 微信昵称
 * phone *string*： 手机号
-* phone_system *string*： 手机系统
-* profile_picture *string*： 头像
-* profile_picture_small *string*： 小头像
+* phoneSystem *string*： 手机系统
+* profilePicture *string*： 头像
+* profilePictureSmall *string*： 小头像
 * wxid *string*
 
 ##### 2.2.1.2、通讯录
 **协议信息**
 GET /contacts
 **响应字段**
-* custom_account *string*： 微信号
+* customAccount *string*： 微信号
 * nickname *string*： 昵称
 * note *string*： 备注
 * pinyin *string*： 昵称拼音首字母大写
@@ -156,6 +162,7 @@ POST /sendtxtmsg
 **Tips：如果是群聊艾特消息，那么`content`字段中的`@`艾特符号数量需要和`atlist`中的被艾特人数组长度一致，简单来说，就是`atlist`中有多少个被艾特人的`wxid`，那么`content`字段中就需要有多少个艾特组合，位置随意，例如：**
 `{"wxid": "xx@chatroom", "content": "这里@11 只是@22 想告诉你@33 每个被艾特人的位置并不重要", "atlist": ["wxid_a", "wxid_b", "wxid_c"]}`
 **每个被艾特人在`content`中 固定为`@[至少两个字符的被艾特人名] + 一个空格`！**
+**如果是发送`@所有人`消息，那么请在`atlist`字段中仅传入一个`notify@all`字符串，`content`字段中仅包含一个`@符号规范（最少两字符+一个空格）`， 一般建议是`@所有人`见名知意**
 
 **响应示例**
 {"code":200,"msg":"success"}
@@ -196,7 +203,6 @@ POST /sendfilemsg
     * path *string*：文件路径（注意，这里的文件路径是bot登陆系统的路径！）
     * file *string*： 文件二进制数据base64编码后字符串
     * filename *string*： 文件名
-    * clear *bool*： 指定文件发送后是否需要删除，默认保留（在`[微信根目录]/temp`）
 * **form-data表单**
     符合标准`form-data`数据格式，需要参数分别是`wxid`、`path`和`image`
 
@@ -215,12 +221,12 @@ POST /chatroom
 **响应字段**
 * admin1 *string*：群聊组管理员
 * admin2 *string*：一般同上
-* admin_nickname *string*：管理员昵称
+* adminNickname *string*：管理员昵称
 * notice *string*： 群公告
 * pinyinAll *string*： 昵称拼音全
 * member *array\<string\>*： 成员wxid列表
-* member_nickname *map\<string, string\>*： 成员群聊昵称（MAP类型）
-* [member_account] *map\<string, string\>*： 当请求参数中`account`为`true`时存在此字段，map类型，成员微信昵称
+* memberNickname *map\<string, string\>*： 成员群聊昵称（MAP类型）
+* [memberAccount] *map\<string, Object\>*： 当请求参数中`account`为`true`时存在此字段，map类型，成员微信昵称，value是一个对象，字段为`wxid反查昵称的所有字段`
 * xml
 * wxid
 
@@ -235,23 +241,43 @@ POST /account_by_wxid
     * wxid *string*
 
 **响应字段**
-* custom_account *string*：微信昵称
+* customAccount *string*：微信号
+* nickname *string*：微信昵称
 * pinyin *string*：拼音
-* pinyin_all *string*：拼音全
-* profile_picture *string*：头像链接
+* pinyinAll *string*：拼音全
+* profilePicture *string*：头像链接
+* profilePictureSmall *string*：小头像（群聊组仅有小头像，没有`profilePicture`）
 * v3 *string*
 * wxid *string*
+
+#### 2.2.1.8、发送卡片消息
+**Tips：不建议直接发送订阅号消息！！（不道德）**
+**协议信息**
+POST /sendcardmsg
+**请求字段**
+* **JSON/form-data：**
+    * wxid *string*
+    * title *string*：卡片标题
+    * url *string*：卡片链接
+    * [digest *string*]：卡片简介
+    * [image *string*]：卡片右侧小图（传url）
+    * [subscriptionAccountId *string*]：订阅号id
+    * [subscriptionAccountName *string*]：订阅号昵称 **再次提醒，不建议使用这两个字段**
 
 #### 2.2.2、回调注册类
 > 目前仅用来同步微信消息
 
 **响应字段**
-* wxid *string*
+* wxid *string*： 发送消息的消息人/群聊组wxid
+* custom_account *string*： 发送消息的消息人微信号（如果是群聊组此字段为空）
+* nickname *string*：发送消息的消息人/群聊组昵称
 * content *string*： 消息内容
 * toUser *string*： 消息接收人（一般为登陆用户wxid）
 * msgid *uint64*： 消息唯一标识
 * originMsg *string*： 原始消息（如：wxid:\nxxxxxxx）
 * chatRoomSourceWxid *string*： 如果为群聊消息，则为消息发送人wxid
+* chatRoomSourceCustomAccount *string*： 如果为群聊消息，则为消息发送人微信号
+* chatRoomSourceNickname *string*： 如果为群聊消息，则为消息发送人微信昵称
 * msgSource *string*： 加密消息
 * type *uint32*： 消息类型
 * displayMsg *string*： 展示消息（一般群聊消息下可用）
@@ -276,12 +302,16 @@ POST /sync-url
 
 ### 2.3、接口使用例子
 **Windows**
+**所有`powershell`或者是使用`cmd`测试发送的例子都可能有编码问题！建议直接用程序测试！**
 ```powershell
 # 发送文本
 curl -Method POST -Body '{"wxid":"47331170911@chatroom", "content": "测试内容\nhello world!"}' http://127.0.0.1:8080/sendtxtmsg
 
 # 发送图片
 curl -Method POST -ContentType "application/json" -Body '{"wxid":"47331170911@chatroom", "path": "D:\\gopath\\wxbot\\测试.txt"}' http://127.0.0.1:8080/sendfilemsg
+
+# 发送卡片消息（例子仅仅是卡片消息，不建议发订阅号消息！ 不道德！不建议发订阅号消息！ 不道德！不建议发订阅号消息！ 不道德！）
+curl -Method POST -ContentType "application/json" -Body '{"wxid": "47331170911@chatroom", "title": "测试标题", "url": "https://www.baidu.com"}' http://127.0.0.1:8080/sendcardmsg
 ```
 
 **Linux**
@@ -305,6 +335,8 @@ curl -XPOST -F "wxid=47331170911@chatroom" -F "file=@/home/jwping/1.txt" 127.0.0
 # 发送文件消息2（使用json方式提交）
 curl -XPOST -H "Content-Type: application/json" -d'{"wxid": "47331170911@chatroom", "filename": "1.txt", "file": "aGVsbG8gd29ybGQh"}' 127.0.0.1:8080/sendfilemsg
 
+# 发送卡片消息
+curl -XPOST -d'{"wxid": "47331170911@chatroom", "title": "测试标题", "url": "www.baidu.com"}' 127.0.0.1:8080/sendcardmsg
 
 # 注册ws回调
 # 使用任意程序websocket客户端连接127.0.0.1:8080/ws
