@@ -13,7 +13,6 @@ import (
 	"net/textproto"
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -111,7 +110,7 @@ func sendFormImg() {
 		log.Fatalf("CreatePart faild: %s\n", err)
 	}
 
-	err = bodyWriter.WriteField("clear", "false")
+	err = bodyWriter.WriteField("path", "D:\\xxxxxxxxxxxxxxxxx")
 	if err != nil {
 		log.Fatalf("CreatePart faild: %s\n", err)
 	}
@@ -146,6 +145,7 @@ func sendJsonImg() {
 
 	type ImgInfo struct {
 		Wxid  string `json:"wxid"`
+		Path  string `json:"path"`
 		Image []byte `json:"image"`
 		Clear bool   `json:"clear"`
 	}
@@ -156,8 +156,9 @@ func sendJsonImg() {
 	}
 
 	ii := ImgInfo{
-		Wxid:  *wxid,
-		Image: data,
+		Wxid: *wxid,
+		Path: "D:\\xxxxxxxxxxxxxxxx",
+		// Image: data,
 		Clear: false,
 	}
 
@@ -217,10 +218,10 @@ func sendFormFile() {
 		log.Fatalf("CreatePart faild: %s\n", err)
 	}
 
-	// err = bodyWriter.WriteField("path", "D:\\xxxxxxx")
-	// if err != nil {
-	// 	log.Fatalf("CreatePart faild: %s\n", err)
-	// }
+	err = bodyWriter.WriteField("path", "D:\\xxxxxxxxxxxxxxxx")
+	if err != nil {
+		log.Fatalf("CreatePart faild: %s\n", err)
+	}
 
 	// 填充boundary结尾
 	bodyWriter.Close()
@@ -252,7 +253,6 @@ type FileMsg struct {
 	Path     string `json:"path,omitempty"`
 	File     []byte `json:"file"`
 	FileName string `json:"filename"`
-	Clear    bool   `json:"clear"`
 }
 
 func sendJsonFile() {
@@ -265,10 +265,10 @@ func sendJsonFile() {
 
 	fm := FileMsg{
 		Wxid: *wxid,
-		// Path:     "D:\\xxxxxxxxxxx",
-		File:     data,
-		FileName: path.Base(filepath.ToSlash(*file_path)),
-		Clear:    false,
+		Path: "D:\\xxxxxxxxxxxxxxxxxxx",
+		// File:     data,
+		// FileName: path.Base(filepath.ToSlash(*file_path)),
+		// Clear: false,
 	}
 
 	j_data, err := json.Marshal(fm)
