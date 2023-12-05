@@ -139,22 +139,32 @@ Options:
 
 ##### 2.2.1.1、检查当前是否已登录
 **协议信息**
+
 GET /checklogin
+
 **别名**
+
 /checkLogin
 /check-login
 /check_login
+
 **响应字段**
+
 * status *uint64*: 当前登陆状态：0 未登陆 - 1 已登陆
 
 ##### 2.2.1.2、登陆信息
 **协议信息**
+
 GET /userinfo
+
 **别名**
+
 /userInfo
 /user-info
 /user_info
+
 **响应字段**
+
 * customAccount *string*: 微信号
 * nickname *string*： 微信昵称
 * phone *string*： 手机号
@@ -165,27 +175,37 @@ GET /userinfo
 
 ##### 2.2.1.3、通讯录
 **协议信息**
+
 GET /contacts
+
 **响应字段**
-* customAccount *string*： 微信号
-* nickname *string*： 昵称
-* note *string*： 备注
-* pinyin *string*： 昵称拼音首字母大写
-* pinyinAll *string*： 昵称拼音全
-* type1 *uint64*： 用户类别1
-* type2 *uint64*： 用户类别2
-* wxid *string*
+
+* contacts *array*
+  * customAccount *string*： 微信号
+  * nickname *string*： 昵称
+  * note *string*： 备注
+  * pinyin *string*： 昵称拼音首字母大写
+  * pinyinAll *string*： 昵称拼音全
+  * type1 *uint64*： 用户类别1
+  * type2 *uint64*： 用户类别2
+  * wxid *string*
+* total *uint64*： 通讯录成员总数
 
 ##### 2.2.1.4、发送文本消息
 > 对于群聊组消息发送支持艾特
 
 **协议信息**
+
 POST /sendtxtmsg
+
 **别名**
+
 /sendTxtMsg
 /send-txt-msg
 /send_txt_msg
+
 **请求字段**
+
 * wxid *string*
 * content *string*：发送消息内容（如果是群聊组消息并需要发送艾特时，**此content字段中需要有对应数量的`@[自定义被艾特人的昵称，不得少于2个字符] [每个艾特后都需要一个空格以进行分隔（包括最后一个艾特！）]`，这一点很重要！ 如果您不理解，请继续看下面的Tips！**）
 * [atlist] *array\<string\>*：如果是群聊组消息并需要发送艾特时，此字段是一个被艾特人的数组
@@ -196,12 +216,16 @@ POST /sendtxtmsg
 **如果是发送`@所有人`消息，那么请在`atlist`字段中仅传入一个`notify@all`字符串，`content`字段中仅包含一个`@符号规范（最少两字符+一个空格）`， 一般建议是`@所有人`见名知意**
 
 **响应示例**
+
 {"code":200,"msg":"success"}
 
 ##### 2.2.1.5、发送图片消息
 **协议信息**
+
 POST /sendimgmsg
+
 **别名**
+
 /sendImgMsg
 /send-img-msg
 /send_img_msg
@@ -212,10 +236,12 @@ POST /sendimgmsg
 > 支持JSON和form-data表单两种方式提交
 
 **请求头**
+
 * **JSON：`Content-Type: application/json`**
 * **form-data表单：`Content-Type: multipart/form-data`**
 
 **请求字段**
+
 * **JSON：**
     * wxid *string*
     * path *string*：图片路径（注意，这里的图片路径是bot登陆系统的路径！）
@@ -229,18 +255,23 @@ POST /sendimgmsg
 
 ##### 2.2.1.6、发送文件消息
 **协议信息**
+
 POST /sendfilemsg
+
 **别名**
+
 /sendFileMsg
 /send-file-msg
 /send_file_msg
 > 支持JSON和form-data表单两种方式提交
 
 **请求头**
+
 * **JSON：`Content-Type: application/json`**
 * **form-data表单：`Content-Type: multipart/form-data`**
 
 **请求字段**
+
 * **JSON：**
     * wxid *string*
     * path *string*：文件路径（注意，这里的文件路径是bot登陆系统的路径！）
@@ -257,15 +288,21 @@ POST /sendfilemsg
 
 GET /chatroom?wxid=xxxx&account=true
 POST /chatroom
+
 **别名**
+
 /chatRoom
 /chat-room
 /chat_room
+
 **请求字段**
+
 * **JSON：**
     * wxid *string*
     * accoun *bool*：为 `true` 时输出中会将每个成员的微信昵称反查带出
+
 **响应字段**
+
 * admin1 *string*：群聊组管理员
 * admin2 *string*：一般同上
 * adminNickname *string*：管理员昵称
@@ -279,20 +316,25 @@ POST /chatroom
 
 #### 2.2.1.8、WXID反查微信昵称
 **协议信息**
+
 > 同时支持GET和POST
 
 GET /accountbywxid?wxid=xxxx
 POST /accountbywxid
+
 **别名**
+
 /accountByWxid
 /account-by-wxid
 /account_by_wxid
 
 **请求字段**
+
 * **JSON：**
     * wxid *string*
 
 **响应字段**
+
 * customAccount *string*：微信号
 * nickname *string*：微信昵称
 * pinyin *string*：拼音
@@ -304,13 +346,17 @@ POST /accountbywxid
 
 #### 2.2.1.9、发送卡片消息
 **协议信息**
+
 POST /sendcardmsg
+
 **别名**
+
 /sendCardMsg
 /send-card-msg
 /send_card_msg
 
 **请求字段**
+
 * **JSON/form-data：**
     * wxid *string*
     * title *string*：卡片标题
@@ -324,12 +370,14 @@ POST /sendcardmsg
 > 这个接口是用来卸载已注入的 `wxbot.dll`，而不关闭微信，可以算是 `injector.exe -u` 的平替
 
 **协议信息**
+
 GET /close
 
 #### 2.2.2、回调注册类
 > 目前仅用来同步微信消息
 
 **响应字段**
+
 * wxid *string*： 发送消息的消息人/群聊组wxid
 * customAccount *string*： 发送消息的消息人微信号（如果是群聊组此字段为空）
 * nickname *string*：发送消息的消息人/群聊组昵称
@@ -349,6 +397,7 @@ GET /close
 
 ##### 2.2.2.1、websocket协议消息
 **协议信息**
+
 GET ws://xxxxx/ws
 
 > websocket没什么好说的，基本上第三方库都有直接可用的实现，协议升级后就是一条全双工通道，目前只用来接收同步微信的实时消息，不要发送消息到服务端，服务端不会响应。
@@ -358,30 +407,38 @@ GET ws://xxxxx/ws
 
 ##### 2.2.2.2.1、注册接口
 POST /syncurl
+
 **别名**
+
 /syncUrl
 /sync-url
 /sync_url
 
 **请求字段**
+
 * url： 你自己启动的Http Server地址路由（**ip:port/[subpath]**）
 * timeout： 超时时间（当有一条新消息通过wxbot发送到你的回调地址时的最长连接等待时间）
 
 ##### 2.2.2.2.2、获取已注册接口列表
 GET /syncurl
+
 **别名**
+
 /syncUrl
 /sync-url
 /sync_url
 
 ##### 2.2.2.2.3、删除接口
 DELETE /syncurl
+
 **别名**
+
 /syncUrl
 /sync-url
 /sync_url
 
 **请求字段**
+
 * url： 已注册的Http Server地址（**ip:port/[subpath]**）
 
 
