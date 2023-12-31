@@ -15,8 +15,14 @@
 
 
 ## 1、运行
-bin目录下`wxbot-sidecar.exe`，使用`-p`指定微信进程的进程号运行：
+bin目录下`wxbot-sidecar.exe`，直接运行即可
 * **wxbot-sidecar.exe (bin/wxbot-sidecar.exe)**
+
+多种情况说明：
+* 当无微信进程在运行时会主动拉起微信
+* 如微信已运行（非多开模式下）会获取当前运行中的微信进程号
+* 您也可以使用`-p`参数手动指定微信进程号
+
 ```
 > .\wxbot-sidecar.exe -p 30568
 > .\wxbot-sidecar.exe --help
@@ -42,10 +48,9 @@ Options:
 > [或通过此链接下载最新微软常用运行库合集解决](https://www.lanzoux.com/b0dptvb0f)
 
 ### 2.1、多开
-* 如果您只有一个微信实例在运行并需要注入或快速上手，那么您无需关心其它参数，直接使用`-p`参数指定微信进程号运行即可
+* 如果您只有一个微信实例在运行并需要注入或快速上手，那么您无需关心其它参数，直接双击运行即可
 * 如果您需要多开微信，那么请先使用`wxbot-sidecar.exe -m`解除微信多开限制（执行时机并不重要，您可以在任何情况下去解除多开限制）
-* 如果您已经解除了多开限制，并希望对运行中的多个微信实例进行注入，那么现在您可以使用`-p`参数对每个微信的进程号进行注入
-* **同时您可以使用`-a`参数指定监听的地址（格式为：`ip:port`）**
+* 如果您已经解除了多开限制，并希望对运行中的多个微信实例进行注入，那么现在您可以使用`-a`参数指定每个实例监听的地址（格式为：`ip:port`）
 
 ### 2.2、配置文件
 > 配置文件支持两种方式分别是：
@@ -220,21 +225,24 @@ POST /api/sendtxtmsg
 > 目前仅用来同步微信消息
 
 **响应字段**
-* BytesExtra *string*：BASE64后的二进制数据
-* BytesTrans *string*
-* StrContent *string*：字符串数据，除文本消息以为大部分均为XML数据
-* CompressContent *string*：`StrContent`以外的BASE64二进制数据，例如引用的消息等
-* CreateTime *string*：秒级时间戳
-  * 从PC登陆微信上发出的消息：标记代表的是每个消息点下发送按钮的那一刻
-  * 从其它设备上发出的/收到的来自其它用户的消息：标记的是本地从服务器接收到这一消息的时间
-* DisplayContent *string*：拍一拍，邀请入群等消息
-* IsSender *string*：是否是自己发出的消息（0：非自己发送、1：自己发送）
-* StrTalker *string*：消息发送者微信ID（wxid）
-* SubType *string*：消息类型子类，例如视频消息大类下可能存在小程序等小类的区分
-* Type *string*：消息类型
-* localId *string*：本地数据库ID，目前来看是一个自增ID
-
-* StatusEx、FlagEx、Status、MsgSvrID、MsgServerSeq、MsgSequence、Reserved0-6、TalkerId 未知
+* wxid *string*：当前实例登陆用户的wxid
+* total *uint32*：每次回调的消息数量
+* data：
+  * BytesExtra *string*：BASE64后的二进制数据
+  * BytesTrans *string*
+  * StrContent *string*：字符串数据，除文本消息以为大部分均为XML数  据
+  * CompressContent *string*：`StrContent`以外的BASE64二进制数  据，例如引用的消息等
+  * CreateTime *string*：秒级时间戳
+    * 从PC登陆微信上发出的消息：标记代表的是每个消息点下发送按钮的那  一刻
+    * 从其它设备上发出的/收到的来自其它用户的消息：标记的是本地从服 务器接收到这一消息的时间
+  * DisplayContent *string*：拍一拍，邀请入群等消息
+  * IsSender *string*：是否是自己发出的消息（0：非自己发送、1：自 己发送）
+  * StrTalker *string*：消息发送者微信ID（wxid）
+  * SubType *string*：消息类型子类，例如视频消息大类下可能存在小程  序等小类的区分
+  * Type *string*：消息类型
+  * localId *string*：本地数据库ID，目前来看是一个自增ID
+  * MsgSvrID *string*：消息id
+  * StatusEx、FlagEx、Status、MsgServerSeq、MsgSequence、Reserved0-6、TalkerId 未知
 
 ##### 2.2.2.1、websocket协议消息
 **协议信息**
