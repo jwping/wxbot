@@ -32,10 +32,11 @@ Options:
         -p, --pid  [ pid ]              Specify the process number for injection
         -c, --config  [ path ]          Specify the configuration file path
         -a, --address                   Specify listening address (e.g. 0.0.0.0:8080)
+        -w, --wechat                    Ignoring the -p parameter will pull up a WeChat instance. Please use this -w parameter after lifting the multi opening restriction!
+        -s, --silence                   Enable silent mode(without popping up the console)
         -m, --multi                     Remove WeChat multi instance restrictions (allowing multiple instances)
         -h, --help                      Output Help Information
 ```
-目前不支持直接运行，需要用`-p`参数指定微信进程号，更多使用方式可以使用`--help`查看
 **目前免注入版本仅支持 3.9.8.25，请务必确认版本号正确**
 
 ### Linux下Docker部署
@@ -50,7 +51,8 @@ Options:
 ### 2.1、多开
 * 如果您只有一个微信实例在运行并需要注入或快速上手，那么您无需关心其它参数，直接双击运行即可
 * 如果您需要多开微信，那么请先使用`wxbot-sidecar.exe -m`解除微信多开限制（执行时机并不重要，您可以在任何情况下去解除多开限制）
-* 如果您已经解除了多开限制，并希望对运行中的多个微信实例进行注入，那么现在您可以使用`-a`参数指定每个实例监听的地址（格式为：`ip:port`）
+* 如果您已经解除了多开限制，并希望对运行中的多个微信实例进行注入，那么现在您使用`-a`参数指定每个实例监听的地址（格式为：`ip:port`）
+* **请注意！如果您在多开模式下希望使用`wxbot-sidecar.exe`拉起新的微信实例，那么您需要为每个微信新实例加上`-w`参数，例如：`wxbot-sidecar.exe -w` 或是 `wxbot-sidecar.exe -w -a 0.0.0.0:8081`**
 
 ### 2.2、配置文件
 > 配置文件支持两种方式分别是：
@@ -128,6 +130,11 @@ Options:
   * **/api/userinfo**          - 获取登陆用户信息
   * **/api/contacts**          - 获取通讯录信息（wxid从这个接口获取）
   * **/api/sendtxtmsg**        - 发送文本消息（好友和群聊组都可通过此接口发送，群聊组消息支持艾特）
+  * **/api/sendimgmsg**        - 发送图片消息（支持json和form-data表单上传两种方式，json方式请将二进制数据使用base64编码后发送）
+  * **/api/sendfilemsg**       - 发送文件消息（支持json和form-data表单上传两种方式，json方式请将二进制数据使用base64编码后发送）
+  * **/api/chatroom**          - 获取群聊组成员列表
+  * **/api/accountbywxid**     - WXID反查微信昵称（支持好友和群聊组等）
+  * **/api/forwardmsg**        - 消息转发
 
 * **回调注册类（目前仅用来获取微信实时消息 - 同步消息接口，同时支持WebSocket和http两种方式！）**
   * **/ws/generalMsg**             - 注册websocket回调（支持注册多个ws通道）：通用消息回调
@@ -220,6 +227,163 @@ POST /api/sendtxtmsg
 **响应示例**
 
 {"code":200,"msg":"success"}
+
+##### 2.2.1.4、发送图片消息
+**协议信息**
+
+POST /api/sendimgmsg
+
+**别名**
+
+/api/sendImgMsg
+
+/api/send-img-msg
+
+/api/send_img_msg
+
+/api/sendimagemsg
+
+/api/sendImageMsg
+
+/api/send-image-msg
+
+/api/send_image_msg
+> 支持JSON和form-data表单两种方式提交
+
+**请求头**
+
+* **JSON：`Content-Type: application/json`**
+* **form-data表单：`Content-Type: multipart/form-data`**
+
+**请求字段**
+
+* **JSON：**
+    * wxid *string*
+    * path *string*：图片路径（注意，这里的图片路径是bot登陆系统的路径！）
+    * image *string*： 图片二进制数据base64编码后字符串 **（不需要加 `data:image/jpeg;base64,` 前缀）**
+    * clear *bool*： 指定图片发送后是否需要删除，默认删除 **（需要注意的是，图片文件保存后并没有后缀，这意味着如果您需要查看历史发送图片，那么您需要至`[微信根目录]/temp`自行查看判断图片格式并添加后缀）**
+
+* **form-data表单**
+    符合标准`form-data`数据格式，需要参数分别是`wxid`、`path`和`image`
+
+`path`和`image`二选一即可，当`path`和`image`同时存在时，`path`优先
+
+##### 2.2.1.5、发送文件消息
+**协议信息**
+
+POST /api/sendfilemsg
+
+**别名**
+
+/api/sendFileMsg
+
+/api/send-file-msg
+
+/api/send_file_msg
+> 支持JSON和form-data表单两种方式提交
+
+**请求头**
+
+* **JSON：`Content-Type: application/json`**
+* **form-data表单：`Content-Type: multipart/form-data`**
+
+**请求字段**
+
+* **JSON：**
+    * wxid *string*
+    * path *string*：文件路径（注意，这里的文件路径是bot登陆系统的路径！）
+    * file *string*： 文件二进制数据base64编码后字符串
+    * filename *string*： 文件名
+* **form-data表单**
+    符合标准`form-data`数据格式，需要参数分别是`wxid`、`path`和`image`
+
+**Tips：** 当文件大小大于`5M`时则建议使用`path`文件路径的方式传参，但这并不意味着`file`不支持大文件发送，只是它需要更久的调用时间，可能是分钟级！`path`和`file`二选一即可，当`path`和`file`同时存在时，`path`优先，当使用`JSON`格式和`file`参数直接传递文件数据时`filename`是必填项！
+
+#### 2.2.1.6、获取群聊组成员信息
+**协议信息**
+> 同时支持GET和POST
+
+GET /api/chatroom?wxid=xxxx
+POST /api/chatroom
+
+**别名**
+
+/api/chatRoom
+
+/api/chat-room
+
+/api/chat_room
+
+**请求字段**
+
+* **JSON：**
+    * wxid *string*
+
+**响应字段**
+* data *map*
+  * wxid *string*：
+    * customAccount *string*：微信号
+    * nickname *string*：昵称
+    * note *string*：备注
+    * pinyin *string*： 昵称拼音首字母大写
+    * pinyinAll *string*： 昵称拼音全
+    * profilePicture *string*：头像
+    * profilePictureSmall *string*：小头像
+    * v3 *string*
+
+#### 2.2.1.7、WXID反查微信昵称
+**协议信息**
+
+> 同时支持GET和POST
+
+GET /api/accountbywxid?wxid=xxxx
+POST /api/accountbywxid
+
+**别名**
+
+/api/accountByWxid
+
+/api/account-by-wxid
+
+/api/account_by_wxid
+
+**请求字段**
+
+* **JSON：**
+    * wxid *string*
+
+**响应字段**
+
+* customAccount *string*：微信号
+* nickname *string*：昵称
+* note *string*：备注
+* pinyin *string*： 昵称拼音首字母大写
+* pinyinAll *string*： 昵称拼音全
+* profilePicture *string*：头像
+* profilePictureSmall *string*：小头像
+* v3 *string*
+
+#### 2.2.1.8、转发消息
+**协议信息**
+> 同时支持GET和POST
+
+GET /api/forwardmsg?wxid=xxxxxxxxxxx&msgId=xxxxxxxxxxxx
+POST /api/forwardmsg
+
+**别名**
+
+/api/forwardMsg
+
+/api/forward-msg
+
+/api/forward_msg
+
+**请求字段**
+> 这里说明一下，因为前端精度问题，有些大佬可能传递`msgId`字段时存在精度丢失或自动转字符串的问题，所以这里我将`msgId`字段设置为了同时支持`uint64`和`string`两种类型！
+
+* **JSON：**
+    * wxid *string*：本次转发消息的接收对象
+    * msgId *uint64|string*：消息id（通常可以用消息回调或者`websocket`回调获取到，当前是消息回调中的`MsgSvrID`字段）
 
 #### 2.2.2、回调注册类
 > 目前仅用来同步微信消息
@@ -320,6 +484,16 @@ curl 127.0.0.1:8080/contacts
 
 # 发送文本消息
 curl -XPOST -H "Content-Type: application/json" -d'{"wxid": "47331170911@chatroom", "content": "测试内容\nHello World"}' 127.0.0.1:8080/sendtxtmsg
+
+# 发送图片消息1（使用form-data表单方式提交）
+curl -XPOST -F "wxid=47331170911@chatroom" -F "image=@/home/jwping/1.jpg" 127.0.0.1:8080/sendimgmsg
+# 发送图片消息2（使用json方式提交）
+curl -XPOST -H "Content-Type: application/json" -d'{"wxid": "47331170911@chatroom", "image": "R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs="}' 127.0.0.1:8080/sendimgmsg
+
+# 发送文件消息1（使用form-data表单方式提交）
+curl -XPOST -F "wxid=47331170911@chatroom" -F "file=@/home/jwping/1.txt" 127.0.0.1:8080/sendfilemsg
+# 发送文件消息2（使用json方式提交）
+curl -XPOST -H "Content-Type: application/json" -d'{"wxid": "47331170911@chatroom", "filename": "1.txt", "file": "aGVsbG8gd29ybGQh"}' 127.0.0.1:8080/sendfilemsg
 
 # 注册ws回调
 # 使用任意程序websocket客户端连接127.0.0.1:8080/ws
