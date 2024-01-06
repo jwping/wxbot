@@ -32,6 +32,7 @@ Options:
         -p, --pid  [ pid ]              Specify the process number for injection
         -c, --config  [ path ]          Specify the configuration file path
         -a, --address                   Specify listening address (e.g. 0.0.0.0:8080)
+        -q, --qrcode-callback           If there is a QR code when WeChat is not logged in, specify the callback address for the QR code URL, using English commas as as separators (e.g. http://127.0.0.1:8081/callback,http://127.0.0.1:8082/callback)
         -w, --wechat                    Ignoring the -p parameter will pull up a WeChat instance. Please use this -w parameter after lifting the multi opening restriction!
         -s, --silence                   Enable silent mode(without popping up the console)
         -m, --multi                     Remove WeChat multi instance restrictions (allowing multiple instances)
@@ -48,29 +49,37 @@ Options:
 > **如果您遇到了此类问题可通过文档最下方的网盘链接中下载 *微软常用运行库.exe* 进行安装**
 > [或通过此链接下载最新微软常用运行库合集解决](https://www.lanzoux.com/b0dptvb0f)
 
-### 2.1、多开
+### 2.1、自动登陆
+目前已支持自动登陆，这里有两种情况：
+* 之前微信已登陆过，再次启动时出现登陆按钮，此时`wxbot-sidecar`会自动触发登陆，您只需在手机端确认登陆即可
+* 之前微信未登陆过或被取消登陆，此时会渲染出二维码图片，您可以在命令行参数中指定`-q`参数，例如：`-q http://127.0.0.1:8081/qrcode-callback` 来指定一个二维码图像的回调地址，或者您也可以在配置文件中指定（参考下方的`配置文件示例`），当然如果您就在屏幕前，您可以直接扫描登陆
+
+### 2.2、多开
 * 如果您只有一个微信实例在运行并需要注入或快速上手，那么您无需关心其它参数，直接双击运行即可
 * 如果您需要多开微信，那么请先使用`wxbot-sidecar.exe -m`解除微信多开限制（执行时机并不重要，您可以在任何情况下去解除多开限制）
 * 如果您已经解除了多开限制，并希望对运行中的多个微信实例进行注入，那么现在您使用`-a`参数指定每个实例监听的地址（格式为：`ip:port`）
 * **请注意！如果您在多开模式下希望使用`wxbot-sidecar.exe`拉起新的微信实例，那么您需要为每个微信新实例加上`-w`参数，例如：`wxbot-sidecar.exe -w` 或是 `wxbot-sidecar.exe -w -a 0.0.0.0:8081`**
 
-### 2.2、配置文件
+### 2.3、配置文件
 > 配置文件支持两种方式分别是：
-> * **[wxid].json：** 支持登陆用户wxid的专属配置文件，如你登陆的微信用户wxid是abc，且微信根目录下有abc.json配置文件的话则优先读取此配置文件！
 > * **wxbot.json：** 这是默认的配置文件（如果有的话）
 >
 > **Tips：**
 > **配置文件路径为 `wxbot-sidecar.exe` 所在的同级目录，或使用`-c`参数指定配置文件路径**
 > **配置文件为json格式，默认不自动创建！**
-> **配置文件优先级：[wxid].json > wxbot.json > 无配置文件时的默认值**
-> 
-> **这样设计配置文件优先级是为了适配微信多开而不那么优雅的实现方式，具体您可以看 `4. 多开高级用法` 了解更多**
+> **配置文件优先级：`-c` 参数指定的配置文件 > wxbot.json > 无配置文件时的默认值**
 
-#### 2.2.1、配置文件示例
+#### 2.3.1、配置文件示例
 ```json
 {
     "addr": "0.0.0.0:8080",
     "sync-url": {
+        "qrcode": [
+          {
+            "timeout": 3000,
+            "url": "http://localhost:8081/qrlogin-callback"
+          }
+        ],
         "general-msg": [
             {
                 "timeout": 3000,
@@ -101,7 +110,10 @@ Options:
 ```
 * **addr:** wxbot服务监听地址（固定为ip:port形式）
 * **sync-url：** http回调地址列表（建议通过下面的/sync-url接口修改，不要手动修改）
-  * **general-msg：**
+  * **qrcode：** 登陆界面出二维码图像时，二维码URL的回调地址
+    * **url：** 回调url
+    * **timeout：** 回调超时时间
+  * **general-msg：** 普通类型消息回调地址
     * **url：** 回调url
     * **timeout：** 回调超时时间
 
@@ -229,6 +241,8 @@ POST /api/sendtxtmsg
 {"code":200,"msg":"success"}
 
 ##### 2.2.1.4、发送图片消息
+> 如果您发送图片失败，那么可能是权限问题，如果您的程序工作目录（`wxbot-sidecar`所在的目录）是在C盘，那么请尝试移动到其他分区中，例如D盘，如果还未解决，请您在github上提issue或加交流群反馈
+
 **协议信息**
 
 POST /api/sendimgmsg
@@ -266,9 +280,11 @@ POST /api/sendimgmsg
 * **form-data表单**
     符合标准`form-data`数据格式，需要参数分别是`wxid`、`path`和`image`
 
-`path`和`image`二选一即可，当`path`和`image`同时存在时，`path`优先
+**`path`和`image`二选一即可，当`path`和`image`同时存在时，`path`优先**
 
 ##### 2.2.1.5、发送文件消息
+> 如果您发送文件失败，那么可能是权限问题，如果您的程序工作目录（`wxbot-sidecar`所在的目录）是在C盘，那么请尝试移动到其他分区中，例如D盘，如果还未解决，请您在github上提issue或加交流群反馈
+
 **协议信息**
 
 POST /api/sendfilemsg
@@ -293,11 +309,13 @@ POST /api/sendfilemsg
     * wxid *string*
     * path *string*：文件路径（注意，这里的文件路径是bot登陆系统的路径！）
     * file *string*： 文件二进制数据base64编码后字符串
-    * filename *string*： 文件名
+    * filename *string*： 文件名（使用`file`字段时，此字段必填）
 * **form-data表单**
     符合标准`form-data`数据格式，需要参数分别是`wxid`、`path`和`image`
 
 **Tips：** 当文件大小大于`5M`时则建议使用`path`文件路径的方式传参，但这并不意味着`file`不支持大文件发送，只是它需要更久的调用时间，可能是分钟级！`path`和`file`二选一即可，当`path`和`file`同时存在时，`path`优先，当使用`JSON`格式和`file`参数直接传递文件数据时`filename`是必填项！
+
+**`path`和`file`二选一即可，当`path`和`file`同时存在时，`path`优先**
 
 #### 2.2.1.6、获取群聊组成员信息
 **协议信息**
@@ -411,7 +429,7 @@ POST /api/forwardmsg
 ##### 2.2.2.1、websocket协议消息
 **协议信息**
 
-GET ws://xxxxx/ws/general-msg
+GET ws://xxxxx/ws/generalMsg
 
 > websocket没什么好说的，基本上第三方库都有直接可用的实现，协议升级后就是一条全双工通道，目前只用来接收同步微信的实时消息，不要发送消息到服务端，服务端不会响应。
 
@@ -468,44 +486,50 @@ DELETE /api/syncurl
 **所有`powershell`或者是使用`cmd`测试发送的例子都可能有编码问题！建议直接用程序测试！**
 ```powershell
 # 发送文本
-curl -Method POST -ContentType "application/json" -Body '{"wxid":"47331170911@chatroom", "content": "测试内容\nhello world!"}' http://127.0.0.1:8080/sendtxtmsg
+curl -Method POST -ContentType "application/json" -Body '{"wxid":"47331170911@chatroom", "content": "测试内容\nhello world!"}' http://127.0.0.1:8080/api/sendtxtmsg
 
 # 发送艾特消息
-curl -Method POST -ContentType "application/json" -Body '{"wxid":"47331170911@chatroom", "content": "测试内容\nhello world!", "atlist": ["被艾特人的wxid"]}' http://127.0.0.1:8080/sendtxtmsg
+curl -Method POST -ContentType "application/json" -Body '{"wxid":"47331170911@chatroom", "content": "测试内容\nhello world!", "atlist": ["被艾特人的wxid"]}' http://127.0.0.1:8080/api/sendtxtmsg
+
+# 发送图片消息
+curl -Method POST -ContentType "application/json" -Body '{"wxid":"47331170911@chatroom", "image": "R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs="}' http://127.0.0.1:8080/api/sendimgmsg
+
+# 发送文件消息
+curl -Method POST -ContentType "application/json" -Body '{"wxid":"47331170911@chatroom", "file": "aGVsbG8gd29ybGQ=", "filename": "1.txt"}' http://127.0.0.1:8080/api/sendfilemsg
 ```
 
 **Linux**
 ```bash
 # 获取登陆用户信息
-curl 127.0.0.1:8080/userinfo
+curl 127.0.0.1:8080/api/userinfo
 
 # 获取通讯录信息
-curl 127.0.0.1:8080/contacts
+curl 127.0.0.1:8080/api/contacts
 
 # 发送文本消息
-curl -XPOST -H "Content-Type: application/json" -d'{"wxid": "47331170911@chatroom", "content": "测试内容\nHello World"}' 127.0.0.1:8080/sendtxtmsg
+curl -XPOST -H "Content-Type: application/json" -d'{"wxid": "47331170911@chatroom", "content": "测试内容\nHello World"}' 127.0.0.1:8080/api/sendtxtmsg
 
 # 发送图片消息1（使用form-data表单方式提交）
-curl -XPOST -F "wxid=47331170911@chatroom" -F "image=@/home/jwping/1.jpg" 127.0.0.1:8080/sendimgmsg
+curl -XPOST -F "wxid=47331170911@chatroom" -F "image=@/home/jwping/1.jpg" 127.0.0.1:8080/api/sendimgmsg
 # 发送图片消息2（使用json方式提交）
-curl -XPOST -H "Content-Type: application/json" -d'{"wxid": "47331170911@chatroom", "image": "R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs="}' 127.0.0.1:8080/sendimgmsg
+curl -XPOST -H "Content-Type: application/json" -d'{"wxid": "47331170911@chatroom", "image": "R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs="}' 127.0.0.1:8080/api/sendimgmsg
 
 # 发送文件消息1（使用form-data表单方式提交）
-curl -XPOST -F "wxid=47331170911@chatroom" -F "file=@/home/jwping/1.txt" 127.0.0.1:8080/sendfilemsg
+curl -XPOST -F "wxid=47331170911@chatroom" -F "file=@/home/jwping/1.txt" 127.0.0.1:8080/api/sendfilemsg
 # 发送文件消息2（使用json方式提交）
-curl -XPOST -H "Content-Type: application/json" -d'{"wxid": "47331170911@chatroom", "filename": "1.txt", "file": "aGVsbG8gd29ybGQh"}' 127.0.0.1:8080/sendfilemsg
+curl -XPOST -H "Content-Type: application/json" -d'{"wxid": "47331170911@chatroom", "filename": "1.txt", "file": "aGVsbG8gd29ybGQh"}' 127.0.0.1:8080/api/sendfilemsg
 
 # 注册ws回调
 # 使用任意程序websocket客户端连接127.0.0.1:8080/ws
 
 # 注册http回调（http协议头不能少！）
-curl -XPOST -d'{"url": "http://127.0.0.1:8081/callback", "timeout": 6000}' 127.0.0.1:8080/sync-url
+curl -XPOST -d'{"url": "http://127.0.0.1:8081/callback", "timeout": 6000}' 127.0.0.1:8080/api/sync-url
 
 # 获取当前已注册的http回调
-curl 127.0.0.1:8080/sync-url
+curl 127.0.0.1:8080/api/sync-url
 
 # 删除一个已注册的http回调
-curl -XDELETE -d'{"url": "http://127.0.0.1:8081/callback"}' 127.0.0.1:8080/sync-url
+curl -XDELETE -d'{"url": "http://127.0.0.1:8081/callback"}' 127.0.0.1:8080/api/sync-url
 ```
 
 ## 3、赞助码
@@ -514,30 +538,6 @@ curl -XDELETE -d'{"url": "http://127.0.0.1:8081/callback"}' 127.0.0.1:8080/sync-
 <img src=https://raw.githubusercontent.com/jwping/wxbot/main/public/wechat_collection.jpg width=40% />
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 <img src=https://raw.githubusercontent.com/jwping/wxbot/main/public/alipay_collection.jpg width=40% />
-
-## 4、微信多开高级用法
-这里仅仅给出一种为每个wxbot指定端口和回调地址等使用思路：
-当您使用`wxbot-sidecar.exe -m`解开微信多开限制后，可以在`wxbot-sidecar.exe`的同级目录下为每个wxbot生成一个[wxid].json的配置文件，以此来为不同的wxbot定义不同的监听地址，或者使用`-a`参数来为每个wxbot指定一个监听地址，配置文件方式例如：
-
-假设您有两个wxid为`wxid_a`和`wxid_b`的两个微信号希望实现多开注入，
-那么您可以在您的微信根目录下分别生成`wxid_a.json`和`wxid_b.json`两个配置文件：
-```powershell
-# wxid_a.json配置文件内容如下：
-{"addr": "0.0.0.0:8080"}
-
-# wxid_b.json配置文件内容如下：
-{"addr": "0.0.0.0:8081"}
-
-# 配置文件生成好之后，您可以使用注入器对两个微信bot分次注入
-# 第一次运行
-wxbot-sidecar.exe -p [wxid_a的微信PID]
-
-# 第二次运行
-wxbot-sidecar.exe -p [wxid_b的微信PID]
-```
-至此，您就完成了对两个微信号wxbot运行，并且这两个wxbot分别监听在`8080`和`8081`端口
-其中`wxid_a`监听在`8080`端口
-其中`wxid_b`监听在`8081`端口
 
 ## 5、鉴权
 > 当您在配置文件中开启了鉴权之后则 **您后续的每个api请求都需要包含鉴权信息！**
