@@ -26,12 +26,13 @@ bin目录下`wxbot-sidecar.exe`，直接运行即可
 ```
 > .\wxbot-sidecar.exe -p 30568
 > .\wxbot-sidecar.exe --help
-Usage: wxbot-sidecar.exe [ OPTIONS ] [ VALUE ]
+Usage: wxbot-sidecar.exe -p [pid] [ OPTIONS ] [ VALUE ]
 
 Options:
         -p, --pid  [ pid ]              Specify the process number for injection
         -c, --config  [ path ]          Specify the configuration file path
         -a, --address                   Specify listening address (e.g. 0.0.0.0:8080)
+        -b, --auto-click-login          Automatically click login when there is a login button
         -q, --qrcode-callback           If there is a QR code when WeChat is not logged in, specify the callback address for the QR code URL, using English commas as as separators (e.g. http://127.0.0.1:8081/callback,http://127.0.0.1:8082/callback)
         -w, --wechat                    Ignoring the -p parameter will pull up a WeChat instance. Please use this -w parameter after lifting the multi opening restriction!
         -s, --silence                   Enable silent mode(without popping up the console)
@@ -51,8 +52,11 @@ Options:
 
 ### 2.1、自动登陆
 目前已支持自动登陆，这里有两种情况：
-* 之前微信已登陆过，再次启动时出现登陆按钮，此时`wxbot-sidecar`会自动触发登陆，您只需在手机端确认登陆即可
-* 之前微信未登陆过或被取消登陆，此时会渲染出二维码图片，您可以在命令行参数中指定`-q`参数，例如：`-q http://127.0.0.1:8081/qrcode-callback` 来指定一个二维码图像的回调地址，或者您也可以在配置文件中指定（参考下方的`配置文件示例`），当然如果您就在屏幕前，您可以直接扫描登陆
+* 之前微信已登陆过，再次启动时出现登陆按钮，如果您启动`wxbot-sidecar`时指定了`-b`参数，则会自动触发登陆，您只需在手机端确认登陆即可
+* 之前微信未登陆过或被取消登陆，此时会渲染出二维码图片，您可以在命令行参数中指定`-q`参数，例如：`-q http://127.0.0.1:8081/qrcode-callback` 来指定一个二维码图像的回调地址，或者您也可以在配置文件中指定（参考下方的`配置文件示例`），当然如果您就在屏幕前，您可以直接扫码登陆
+
+配置二维码图片回调时，**命令行参数中指定的回调地址优先级要高于配置文件**
+
 
 ### 2.2、多开
 * 如果您只有一个微信实例在运行并需要注入或快速上手，那么您无需关心其它参数，直接双击运行即可
@@ -79,6 +83,12 @@ Options:
             "timeout": 3000,
             "url": "http://localhost:8081/qrlogin-callback"
           }
+        ],
+        "public-msg": [
+            {
+                "timeout": 3000,
+                "url": "http://localhost:8082/callback"
+            }
         ],
         "general-msg": [
             {
@@ -126,7 +136,7 @@ Options:
     * **token：** 登陆后的token
 * **root-dir：** 发送和获取的泛文件（图片、语音、视频、文件）存放路径，同时也会启动一个文件服务端，默认值是微信安装目录下
 * **log** 
-  * **level：** 日志级别：分为 **trace**、**debug**、**info**、**warn**
+  * **level：** 日志级别：分为 **trace**、**debug**、**info**、**warn**，如果您在使用中遇到了闪退、崩溃等问题，那么请将此`log.level`指定为`trace`后收集日志反馈
 
 **实际上配置文件中的所有字段都是非必填项，它们都可以独立存在，如果您不需要配置任何项，那么请不要创建它！**
 
@@ -404,23 +414,42 @@ POST /api/forwardmsg
     * msgId *uint64|string*：消息id（通常可以用消息回调或者`websocket`回调获取到，当前是消息回调中的`MsgSvrID`字段）
 
 #### 2.2.2、回调注册类
-> 目前仅用来同步微信消息
+##### 2.2.2.1、登陆二维码回调（qrcode）
+**响应字段**
+* url *string*：登陆二维码URL（需在微信中渲染为二维码后扫码）
 
+##### 2.2.2.2、订阅号消息回调（public-msg）
+* wxid *string*：当前实例登陆用户的wxid
+* total *uint32*：每次回调的消息数量
+* data：
+  * BytesExtra *string*：扩展字段BASE64后的二进制数据
+  * BytesTrans *string*
+  * Content *string*：订阅号号XML消息
+  * CreateTime *string*：秒级时间戳
+  * IsSender *string*：是否是自己发出的消息（0：非自己发送、1：自己发送）
+  * StrTalker *string*：订阅号发送者微信ID（wxid）
+  * SubType *string*：消息类型子类，例如视频消息大类下可能存在小程序等小类的区分
+  * Type *string*：消息类型
+  * localId *string*：本地数据库ID，目前来看是一个自增ID
+  * MsgSvrID *string*：消息id
+  * StatusEx、FlagEx、Status、MsgServerSeq、MsgSequence、Reserved0-6、TalkerId 未知
+
+##### 2.2.2.3、普通消息回调（general-msg）
 **响应字段**
 * wxid *string*：当前实例登陆用户的wxid
 * total *uint32*：每次回调的消息数量
 * data：
-  * BytesExtra *string*：BASE64后的二进制数据
+  * BytesExtra *string*：扩展字段BASE64后的二进制数据
   * BytesTrans *string*
-  * StrContent *string*：字符串数据，除文本消息以为大部分均为XML数  据
+  * StrContent *string*：字符串数据，除文本消息以为大部分均为XML数据
   * CompressContent *string*：`StrContent`以外的BASE64二进制数  据，例如引用的消息等
   * CreateTime *string*：秒级时间戳
-    * 从PC登陆微信上发出的消息：标记代表的是每个消息点下发送按钮的那  一刻
+    * 从PC登陆微信上发出的消息：标记代表的是每个消息点下发送按钮的那一刻
     * 从其它设备上发出的/收到的来自其它用户的消息：标记的是本地从服 务器接收到这一消息的时间
   * DisplayContent *string*：拍一拍，邀请入群等消息
-  * IsSender *string*：是否是自己发出的消息（0：非自己发送、1：自 己发送）
+  * IsSender *string*：是否是自己发出的消息（0：非自己发送、1：自己发送）
   * StrTalker *string*：消息发送者微信ID（wxid）
-  * SubType *string*：消息类型子类，例如视频消息大类下可能存在小程  序等小类的区分
+  * SubType *string*：消息类型子类，例如视频消息大类下可能存在小程序等小类的区分
   * Type *string*：消息类型
   * localId *string*：本地数据库ID，目前来看是一个自增ID
   * MsgSvrID *string*：消息id
@@ -429,7 +458,13 @@ POST /api/forwardmsg
 ##### 2.2.2.1、websocket协议消息
 **协议信息**
 
+订阅号消息
 GET ws://xxxxx/ws/generalMsg
+
+普通消息
+GET ws://xxxxx/ws/generalMsg
+
+消息体参考回调响应字段
 
 > websocket没什么好说的，基本上第三方库都有直接可用的实现，协议升级后就是一条全双工通道，目前只用来接收同步微信的实时消息，不要发送消息到服务端，服务端不会响应。
 
@@ -452,7 +487,9 @@ POST /api/syncurl
 * url *string*： 你自己启动的Http Server地址路由（**ip:port/[subpath]**）
 * timeout *int*： 超时时间（当有一条新消息通过wxbot发送到你的回调地址时的最长连接等待时间）
 * *type： string*
-  * `general-msg`：为通用消息回调，目前仅有这一类型
+  * `qrcode`：二维码消息回调（仅存在登陆二维码时触发）
+  * `public-msg`：为订阅号消息回调
+  * `general-msg`：为普通消息回调
 
 ##### 2.2.2.2.2、获取已注册接口列表
 GET /api/syncurl

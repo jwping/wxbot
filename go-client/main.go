@@ -34,8 +34,14 @@ type Message struct {
 	ImgData            string `json:"imgData"`
 }
 
+type PublicMessage struct {
+	Data  []map[string]string `json:"data"`
+	Total int                 `json:"total"`
+	Wxid  string              `json:"wxid"`
+}
+
 func wsClient() {
-	u := url.URL{Scheme: "ws", Host: *addr, Path: "/ws/generalMsg"}
+	u := url.URL{Scheme: "ws", Host: *addr, Path: "/ws/publicMsg"}
 	log.Printf("connecting to %s", u.String())
 
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
@@ -45,16 +51,21 @@ func wsClient() {
 	defer c.Close()
 
 	for {
-		_, message, err := c.ReadMessage()
+		_, public_message, err := c.ReadMessage()
 		if err != nil {
 			log.Println("ReadMessage:", err)
 			return
 		}
-		log.Printf("recv: %s", message)
+		// log.Printf("recv: %s", message)
 
-		// var msg Message
-		// json.Unmarshal(message, &msg)
-		// log.Printf("msg: %+v\n", msg)
+		// var public_message_map map[string]interface{}
+		var pm PublicMessage
+
+		// json.Unmarshal(public_message, &public_message_map)
+		json.Unmarshal(public_message, &pm)
+
+		// log.Printf("content: %s\n", public_message_map["data"].([]interface{})[0].(map[string]interface{})["Content"])
+		log.Printf("content: %s\n", pm.Data[0]["Content"])
 	}
 }
 
