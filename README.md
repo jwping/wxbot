@@ -414,6 +414,9 @@ POST /api/forwardmsg
     * msgId *uint64|string*：消息id（通常可以用消息回调或者`websocket`回调获取到，当前是消息回调中的`MsgSvrID`字段）
 
 #### 2.2.2、回调注册类
+> 目前已知BUG是部分环境/微信号有登陆后微信崩溃的问题，因为我本地环境均未复现出该问题，所以修复进度较慢，但修复中...
+> 如果您愿意提供程序日志我不胜感激
+
 ##### 2.2.2.1、登陆二维码回调（qrcode）
 **响应字段**
 * url *string*：登陆二维码URL（需在微信中渲染为二维码后扫码）
@@ -453,6 +456,7 @@ POST /api/forwardmsg
   * Type *string*：消息类型
   * localId *string*：本地数据库ID，目前来看是一个自增ID
   * MsgSvrID *string*：消息id
+  * Sender *string*：群聊消息发送人的wxid（仅在消息为chatroom群聊消息时存在该字段）
   * StatusEx、FlagEx、Status、MsgServerSeq、MsgSequence、Reserved0-6、TalkerId 未知
 
 ##### 2.2.2.1、websocket协议消息
