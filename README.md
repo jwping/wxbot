@@ -445,7 +445,7 @@ POST /api/forwardmsg
   * BytesExtra *string*：扩展字段BASE64后的二进制数据
   * BytesTrans *string*
   * StrContent *string*：字符串数据，除文本消息以为大部分均为XML数据
-  * CompressContent *string*：`StrContent`以外的BASE64二进制数  据，例如引用的消息等
+  * Content *string*：引用消息、用户转发的订阅号消息等
   * CreateTime *string*：秒级时间戳
     * 从PC登陆微信上发出的消息：标记代表的是每个消息点下发送按钮的那一刻
     * 从其它设备上发出的/收到的来自其它用户的消息：标记的是本地从服 务器接收到这一消息的时间
