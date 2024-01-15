@@ -19,7 +19,7 @@ bin目录下`wxbot-sidecar.exe`，直接运行即可
 * **wxbot-sidecar.exe (bin/wxbot-sidecar.exe)**
 
 多种情况说明：
-* 当无微信进程在运行时会主动拉起微信
+* 当无微信进程在运行时会主动拉起微信（会从注册表找微信安装目录，如果是非Setup方式安装的可能拉不起来，那么请手动启动微信并使用`-p`参数指定`pid`）
 * 如微信已运行（非多开模式下）会获取当前运行中的微信进程号
 * 您也可以使用`-p`参数手动指定微信进程号
 
@@ -61,7 +61,9 @@ Options:
 ### 2.2、多开
 * 如果您只有一个微信实例在运行并需要注入或快速上手，那么您无需关心其它参数，直接双击运行即可
 * 如果您需要多开微信，那么请先使用`wxbot-sidecar.exe -m`解除微信多开限制（执行时机并不重要，您可以在任何情况下去解除多开限制）
-* 如果您已经解除了多开限制，并希望对运行中的多个微信实例进行注入，那么现在您使用`-a`参数指定每个实例监听的地址（格式为：`ip:port`）
+* 如果您已经解除了多开限制，并希望对运行中的多个微信实例进行注入：
+  * （可选）使用`-a`参数指定每个实例监听的地址（格式为：`ip:port`），**如果您的配置文件中未指定`addr`或地址冲突，那么此`-a`参数是必选项**，否则会导致端口冲突
+  * （可选）使用`-c`参数指定第二个配置文件地址，如果您不指定一个新的配置文件地址，那么可能会导致您多个`wxbot-sidecar`实例共用一份配置文件（包括但不限于回调地址操作会同时影响该配置文件），推荐用法是对于多开实例每份实例使用`-c`参数去指定不同的配置文件运行
 * **请注意！如果您在多开模式下希望使用`wxbot-sidecar.exe`拉起新的微信实例，那么您需要为每个微信新实例加上`-w`参数，例如：`wxbot-sidecar.exe -w` 或是 `wxbot-sidecar.exe -w -a 0.0.0.0:8081`**
 
 ### 2.3、配置文件
@@ -150,16 +152,22 @@ Options:
 **路由列表概览：**
 * **功能类**
   * **/api/userinfo**          - 获取登陆用户信息
-  * **/api/contacts**          - 获取通讯录信息（wxid从这个接口获取）
+  * **/api/contacts**          - 获取通讯录信息（wxid从这个接口获取），**不建议使用，请使用下面的`/api/dbcontacts`**
+  * **/api/dbcontacts**        - 从数据库中获取通讯录信息（wxid从这个接口获取）
   * **/api/sendtxtmsg**        - 发送文本消息（好友和群聊组都可通过此接口发送，群聊组消息支持艾特）
   * **/api/sendimgmsg**        - 发送图片消息（支持json和form-data表单上传两种方式，json方式请将二进制数据使用base64编码后发送）
   * **/api/sendfilemsg**       - 发送文件消息（支持json和form-data表单上传两种方式，json方式请将二进制数据使用base64编码后发送）
-  * **/api/chatroom**          - 获取群聊组成员列表
-  * **/api/accountbywxid**     - WXID反查微信昵称（支持好友和群聊组等）
+  * **/api/chatroom**          - 获取群聊组成员列表，**不建议使用，请使用下面的`/api/dbchatroom`**
+  * **/api/dbchatroom**        - 从数据库中获取群聊组信息和成员列表
+  * **/api/accountbywxid**     - WXID反查微信昵称（支持好友、群聊组和群聊组内成员等），**不建议使用，请使用下面的`/api/dbaccountbywxid`**
+  * **/api/dbaccountbywxid**   - 从数据库中通过WXID反查微信昵称（支持好友、群聊组和群聊组内成员等）
   * **/api/forwardmsg**        - 消息转发
+  * **/api/dbs**               - 获取支持查询的数据库句柄
+  * **/api/execsql**           - 通过数据库句柄执行`SQL`语句
 
 * **回调注册类（目前仅用来获取微信实时消息 - 同步消息接口，同时支持WebSocket和http两种方式！）**
   * **/ws/generalMsg**             - 注册websocket回调（支持注册多个ws通道）：通用消息回调
+  * **/ws/publicMsg**              - 注册websocket回调（支持注册多个ws通道）：订阅号（公众号）消息回调
   * **/api/syncurl**        - http回调相关（支持注册多个http接口，注册请带上协议头：http/https，注册成功会持久化到配置文件中）
 
 #### 2.2.1、功能类接口
@@ -196,6 +204,8 @@ GET /api/userinfo
 * wxid *string*
 
 ##### 2.2.1.2、通讯录
+> **不建议使用，请使用下面的从数据库中获取通讯录接口**
+
 **协议信息**
 
 GET /api/contacts
@@ -220,7 +230,38 @@ GET /api/contacts
   * wxid *string*
 * total *uint64*： 通讯录成员总数
 
-##### 2.2.1.3、发送文本消息
+##### 2.2.1.3、从数据库中获取通讯录
+**协议信息**
+
+GET /api/dbcontacts
+
+**别名**
+
+/api/dbContacts
+
+/api/db-contacts
+
+/api/db_contacts
+
+**响应字段**
+
+* contacts *array*
+  * Alias *string*： 微信号
+  * NickName *string*： 昵称
+  * EncryptUserName *string*：v3
+  * Remark *string*： 备注
+  * RemarkPYInitial *string*： 备注拼音首字母大写
+  * RemarkQuanPin *string*： 备注拼音全
+  * PYInitial *string*： 昵称拼音首字母大写
+  * QuanPin *string*： 昵称拼音全
+  * profilePicture *string*：头像
+  * profilePictureSmall *string*：小头像
+  * type *string*
+  * UserName *string*：wxid
+  * 其余字段请自测
+* total *uint64*： 通讯录成员总数
+
+##### 2.2.1.4、发送文本消息
 > 对于群聊组消息发送支持艾特
 
 **协议信息**
@@ -250,7 +291,7 @@ POST /api/sendtxtmsg
 
 {"code":200,"msg":"success"}
 
-##### 2.2.1.4、发送图片消息
+##### 2.2.1.5、发送图片消息
 > 如果您发送图片失败，那么可能是权限问题，如果您的程序工作目录（`wxbot-sidecar`所在的目录）是在C盘，那么请尝试移动到其他分区中，例如D盘，如果还未解决，请您在github上提issue或加交流群反馈
 
 **协议信息**
@@ -292,7 +333,7 @@ POST /api/sendimgmsg
 
 **`path`和`image`二选一即可，当`path`和`image`同时存在时，`path`优先**
 
-##### 2.2.1.5、发送文件消息
+##### 2.2.1.6、发送文件消息
 > 如果您发送文件失败，那么可能是权限问题，如果您的程序工作目录（`wxbot-sidecar`所在的目录）是在C盘，那么请尝试移动到其他分区中，例如D盘，如果还未解决，请您在github上提issue或加交流群反馈
 
 **协议信息**
@@ -327,7 +368,10 @@ POST /api/sendfilemsg
 
 **`path`和`file`二选一即可，当`path`和`file`同时存在时，`path`优先**
 
-#### 2.2.1.6、获取群聊组成员信息
+
+#### 2.2.1.7、获取群聊组信息
+> **不建议使用，请使用下面的从数据库中获取群聊组信息**
+
 **协议信息**
 > 同时支持GET和POST
 
@@ -359,7 +403,49 @@ POST /api/chatroom
     * profilePictureSmall *string*：小头像
     * v3 *string*
 
-#### 2.2.1.7、WXID反查微信昵称
+#### 2.2.1.8、从数据库中获取群聊组成员信息
+
+**协议信息**
+> 同时支持GET和POST
+
+GET /api/dbchatroom?wxid=xxxx
+POST /api/dbchatroom
+
+**别名**
+
+/api/dbChatRoom
+
+/api/db-chat-room
+
+/api/db_chat_room
+
+**请求字段**
+
+* **JSON：**
+    * wxid *string*
+
+**响应字段**
+* data *map*
+  * Announcement *string*：群公告
+  * AnnouncementEditor *string*：群公告编辑人
+  * AnnouncementPublishTime *string*：群公告编辑秒级时间戳
+  * wxid *string*：
+    * Alias *string*： 微信号
+    * NickName *string*： 昵称
+    * EncryptUserName *string*：v3
+    * Remark *string*： 备注
+    * RemarkPYInitial *string*： 备注拼音首字母大写
+    * RemarkQuanPin *string*： 备注拼音全
+    * PYInitial *string*： 昵称拼音首字母大写
+    * QuanPin *string*： 昵称拼音全
+    * profilePicture *string*：头像
+    * profilePictureSmall *string*：小头像
+    * type *string*
+    * UserName *string*：wxid
+  * 其余字段请自测
+
+#### 2.2.1.9、WXID反查信息
+> **不建议使用，请使用下面的从数据库中通过WXID反查信息**
 **协议信息**
 
 > 同时支持GET和POST
@@ -391,7 +477,44 @@ POST /api/accountbywxid
 * profilePictureSmall *string*：小头像
 * v3 *string*
 
-#### 2.2.1.8、转发消息
+#### 2.2.1.10、从数据库中通过WXID反查信息
+**协议信息**
+
+> 同时支持GET和POST
+
+GET /api/dbaccountbywxid?wxid=xxxx
+POST /api/dbaccountbywxid
+
+**别名**
+
+/api/dbAccountByWxid
+
+/api/db-account-by-wxid
+
+/api/db_account_by_wxid
+
+**请求字段**
+
+* **JSON：**
+    * wxid *string*
+
+**响应字段**
+
+* Alias *string*： 微信号
+* NickName *string*： 昵称
+* EncryptUserName *string*：v3
+* Remark *string*： 备注
+* RemarkPYInitial *string*： 备注拼音首字母大写
+* RemarkQuanPin *string*： 备注拼音全
+* PYInitial *string*： 昵称拼音首字母大写
+* QuanPin *string*： 昵称拼音全
+* profilePicture *string*：头像
+* profilePictureSmall *string*：小头像
+* type *string*
+* UserName *string*：wxid
+* 其余字段请自测
+
+#### 2.2.1.11、转发消息
 **协议信息**
 > 同时支持GET和POST
 
@@ -412,6 +535,48 @@ POST /api/forwardmsg
 * **JSON：**
     * wxid *string*：本次转发消息的接收对象
     * msgId *uint64|string*：消息id（通常可以用消息回调或者`websocket`回调获取到，当前是消息回调中的`MsgSvrID`字段）
+
+
+#### 2.2.1.12、获取数据库句柄
+**协议信息**
+GET /api/dbs
+
+**响应字段**
+*map<string, uint64>*
+* *string*： 数据库名
+* *uint64*： 句柄
+
+#### 2.2.1.13、执行`SQL`语句
+**协议信息**
+POST /api/execsql
+
+**别名**
+
+/api/execSql
+
+/api/exec-sql
+
+/api/exec_sql
+
+**请求字段**
+* **JSON：**
+    * dbName *string*：需要执行`SQL`的数据库名
+    * sql *string*：需要执行的`SQL`语句
+
+**可执行的SQL例子：**
+**PublicMsg.db**
+查询指定公众号的所有文章（本地已接受的）
+`SELECT * FROM PublicMsg WHERE StrTalker=='gh_13508120ed24'`
+
+查询指定时间范围的所有订阅号文章（20230115全天的）
+`SELECT * FROM PublicMsg WHERE CreateTime>1705248000 AND CreateTime<1705334399;`
+
+分页查询，从第21行开始，累加20条数据进行检索
+`SELECT * FROM PublicMsg ORDER BY localId DESC limit 20,20;`
+
+**MicroMsg.db**
+查询通讯录所有成员（包括好友、群聊组、订阅号等）
+`SELECT * FROM Contact`
 
 #### 2.2.2、回调注册类
 > 目前已知BUG是部分环境/微信号有登陆后微信崩溃的问题，因为我本地环境均未复现出该问题，所以修复进度较慢，但修复中...
@@ -463,7 +628,7 @@ POST /api/forwardmsg
 **协议信息**
 
 订阅号消息
-GET ws://xxxxx/ws/generalMsg
+GET ws://xxxxx/ws/publicMsg
 
 普通消息
 GET ws://xxxxx/ws/generalMsg
@@ -492,8 +657,8 @@ POST /api/syncurl
 * timeout *int*： 超时时间（当有一条新消息通过wxbot发送到你的回调地址时的最长连接等待时间）
 * *type： string*
   * `qrcode`：二维码消息回调（仅存在登陆二维码时触发）
-  * `public-msg`：为订阅号消息回调
-  * `general-msg`：为普通消息回调
+  * `public-msg`：订阅号消息回调
+  * `general-msg`：普通消息回调
 
 ##### 2.2.2.2.2、获取已注册接口列表
 GET /api/syncurl

@@ -41,6 +41,8 @@ type PublicMessage struct {
 }
 
 func wsClient() {
+	// /ws/generalMsg
+	// /ws/publicMsg
 	u := url.URL{Scheme: "ws", Host: *addr, Path: "/ws/publicMsg"}
 	log.Printf("connecting to %s", u.String())
 
@@ -51,21 +53,21 @@ func wsClient() {
 	defer c.Close()
 
 	for {
-		_, public_message, err := c.ReadMessage()
+		_, message, err := c.ReadMessage()
 		if err != nil {
 			log.Println("ReadMessage:", err)
 			return
 		}
-		// log.Printf("recv: %s", message)
+		log.Printf("recv: %s", message)
 
 		// var public_message_map map[string]interface{}
-		var pm PublicMessage
+		// var pm PublicMessage
 
 		// json.Unmarshal(public_message, &public_message_map)
-		json.Unmarshal(public_message, &pm)
+		// json.Unmarshal(message, &pm)
 
 		// log.Printf("content: %s\n", public_message_map["data"].([]interface{})[0].(map[string]interface{})["Content"])
-		log.Printf("content: %s\n", pm.Data[0]["Content"])
+		// log.Printf("content: %s\n", pm.Data[0]["Content"])
 	}
 }
 
