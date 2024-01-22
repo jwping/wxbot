@@ -71,7 +71,7 @@ def sendJsonFile():
         else:
             print("faild: %s" % (ret.text))
 
-flags.DEFINE_string("addr", "http://localhost:8080", "Http service address")
+flags.DEFINE_string("addr", "http://localhost:8080/api", "Http service address")
 flags.DEFINE_string("mode", "json-file", "Select the startup mode. The optional values are ws, http, form-img, json-img, form-file and json-file")
 flags.DEFINE_string("img", "../public/1.jpg", "Specify image path when sending image messages")
 flags.DEFINE_string("file", "../public/1.txt", "Send file message specifying file path")
