@@ -53,15 +53,17 @@ ENV：
 # 运行
 # -e 指定环境变量
 # -p 指定端口映射，这里是将本地环境的8080端口映射到容器内的8080端口，可按需更改
-$ docker run -itd --name wxbot -e WXBOT_ARGS="-q xxx" -p 8080:8080 registry.cn-shanghai.aliyuncs.com/jwping/wxbot:v1.10.1-3.9.8.25
+$ docker run -itd --name wxbot -e WXBOT_ARGS="-q xxx" -p 8080:8080 registry.cn-shanghai.aliyuncs.com/jwping/wxbot:v1.10.1-9-3.9.8.25
 # 如果希望将微信的数据持久化出来（包括指定wxbot.json），请使用-v参数把/home/wxbot目录映射出来
-$ docker run -itd --name wxbot -e WXBOT_ARGS="-q xxx" -p 8080:8080 -v xxxx:/home/wxbot registry.cn-shanghai.aliyuncs.com/jwping/wxbot:v1.10.1-3.9.8.25
+$ docker run -itd --name wxbot -e WXBOT_ARGS="-q xxx" -p 8080:8080 -v xxxx:/home/wxbot registry.cn-shanghai.aliyuncs.com/jwping/wxbot:v1.10.1-9-3.9.8.25
 
 # 可能会刷一些错误日志，不用担心，不影响使用
 # 查看登陆URL，可通过百度随便找个二维码在线生成工具将登陆URL转为二维码后使用手机扫码登陆
-# wxbot第一次运行时需要进行一些初始化动作，时间会较久（大约3-5分钟），此命令会占用shell不断输出，5分钟内无输出也可能是正常的，等待它初始化完成后输出登陆地址即可
+# 再次提醒，URL不是直接访问出二维码，或者手机微信访问就可以登陆，是需要百度一个二维码在线生成，将此URL生成为二维码后使用手机微信扫码登陆！
+# wxbot第一次运行时需要进行一些初始化动作，时间会较久（大约3-5分钟），此命令会占用shell不断输出，5分钟内无输出也可能是正常的，等待它初始化完成后输出登陆地址即可，期间任何报错都可以忽略，只要容器没有退出运行都可以继续等待
 # 二维码扫描确认登陆后也需要一段时间才会触发服务端口监听（因为微信也有一些初始化动作），期间他也会一致刷登陆URL，这是正常的，后面再次启动就不需要了
 # 直到日志出现Http Server Listen 0.0.0.0:8080，那么就可以进行访问验证了
+# 正常来说初始化动作不会超过五分钟（具体视你的环境配置），如果出现了login url但是没有具体的地址并且一直无输出了那么大概率挂掉了，请尝试使用docker rm -f wxbot后重新run一个
 $ docker logs -f wxbot
 
 # 如果最终日志输出报错：
@@ -70,7 +72,10 @@ Please review the logs and provide feedback
 Manager init faild: -1
 
 那么这可能是您当前的docker版本较低（> 20.10.8），或者在docker run时添加--security-opt seccomp=unconfined参数，完整运行命令如下：
-$ docker run -itd --name wxbot -e WXBOT_ARGS="-q xxx" -p 8080:8080 --security-opt seccomp=unconfined registry.cn-shanghai.aliyuncs.com/jwping/wxbot:v1.10.1-3.9.8.25
+$ docker run -itd --name wxbot -e WXBOT_ARGS="-q xxx" -p 8080:8080 --security-opt seccomp=unconfined registry.cn-shanghai.aliyuncs.com/jwping/wxbot:v1.10.1-9-3.9.8.25
+
+# 如果您还是无法成功运行，那么请尝试registry.cn-shanghai.aliyuncs.com/jwping/wxbot:v1.10.1-8-3.9.8.25镜像，启动命令如下：
+$ docker run -itd --name wxbot -e WXBOT_ARGS="-q xxx" -p 8080:8080 registry.cn-shanghai.aliyuncs.com/jwping/wxbot:v1.10.1-8-3.9.8.25
 
 # docker运行微信是加了自动登陆点击的，所以对于二次及以上的运行会自动触发登陆，只需要等待手机上弹出登录框即可，如果启动长时间无响应请使用下面的命令重启
 $ docker restart wxbot
