@@ -34,15 +34,29 @@ Options:
         -a, --address                   Specify listening address (e.g. 0.0.0.0:8080)
         -b, --auto-click-login          Automatically click login when there is a login button
         -q, --qrcode-callback           If there is a QR code when WeChat is not logged in, specify the callback address for the QR code URL, using English commas as as separators (e.g. http://127.0.0.1:8081/callback,http://127.0.0.1:8082/callback)
-        -w, --wechat                    Ignoring the -p parameter will pull up a WeChat instance. Please use this -w parameter after lifting the multi opening restriction!
+        -w, --wechat [wechat_path,optional]     Ignoring the -p parameter will pull up a WeChat instance. Please use this -w parameter after lifting the multi opening restriction!
         -s, --silence                   Enable silent mode(without popping up the console)
         -m, --multi                     Remove WeChat multi instance restrictions (allowing multiple instances)
+        -v, --version                   Output Version Information
         -h, --help                      Output Help Information
 ```
 **目前免注入版本仅支持 3.9.8.25，请务必确认版本号正确**
 
 ### Linux下Docker部署
-> 在 `Linux` 下使用 `Docker` 部署 `Wechat` + `wxbot` 全部流程已经跑通了，后面我会构建成一个公共镜像供大家使用（但使用 `wine` 运行 `WeChat` 的稳定性如何到时还需要大家帮忙一起测试了）
+> 在 `Linux` 下使用 `Docker` 部署 `Wechat` + `wxbot` 全部流程已经跑通了，目前构建的公共镜像测试时间不长稳定性未知，建议各位使用时先测试
+> 构建方式在`docker`路径下查看`README.md`和`Dockerfile`
+```shell
+# 运行
+$ docker run -itd --name wxbot -e WXBOT_ARGS="-q xxx" registry.cn-shanghai.aliyuncs.com/jwping/wxbot:v1.10.0-3.9.8.25
+# 如果希望将微信的数据持久化出来（包括指定wxbot.json），请使用-v参数把/home/wxbot目录映射出来
+$ docker run -itd --name wxbot -e WXBOT_ARGS="-q xxx" -v xxxx:/home/wxbot registry.cn-shanghai.aliyuncs.com/jwping/wxbot:v1.10.0-3.9.8.25
+
+# 查看登陆URL，可通过二维码在线生成工具将登陆URL转为二维码后使用手机扫码登陆
+$ docker logs -f wxbot
+
+# docker运行微信是加了自动登陆点击的，所以对于二次及以上的运行会自动触发登陆，只需要等待手机上弹出登录框即可，如果启动长时间无响应请使用下面的命令重启
+$ docker restart wxbot
+```
 
 ## 2、使用
 > 如果您在使用时遇到了缺少运行库的报错
@@ -166,6 +180,7 @@ Options:
   * **/api/forwardmsg**        - 消息转发
   * **/api/dbs**               - 获取支持查询的数据库句柄
   * **/api/execsql**           - 通过数据库句柄执行`SQL`语句
+  * **/api/lz4decode**         - 将lz4压缩的数据进行解码（请求数据需要base64）
   * **/close**                 - 停止 `wxbot-sidecar`（此命令用来停止`http server`，并中止程序运行）
 
 * **回调注册类（目前仅用来获取微信实时消息 - 同步消息接口，同时支持WebSocket和http两种方式！）**
@@ -519,6 +534,7 @@ POST /api/dbaccountbywxid
 
 #### 2.2.1.11、转发消息
 **协议信息**
+
 > 同时支持GET和POST
 
 GET /api/forwardmsg?wxid=xxxxxxxxxxx&msgId=xxxxxxxxxxxx
@@ -542,15 +558,21 @@ POST /api/forwardmsg
 
 #### 2.2.1.12、获取数据库句柄
 **协议信息**
+
 GET /api/dbs
 
 **响应字段**
+
 *map<string, uint64>*
 * *string*： 数据库名
 * *uint64*： 句柄
 
 #### 2.2.1.13、执行`SQL`语句
 **协议信息**
+
+> 同时支持GET和POST
+
+GET /api/execsql?dbName=PublicMsg.db&sql='select * from PublicMsg ORDER BY localId DESC limit 1' *（这是一个实际可用的例子，前提是你收到过订阅号消息）*
 POST /api/execsql
 
 **别名**
@@ -562,12 +584,15 @@ POST /api/execsql
 /api/exec_sql
 
 **请求字段**
+
 * **JSON：**
     * dbName *string*：需要执行`SQL`的数据库名
     * sql *string*：需要执行的`SQL`语句
 
 **可执行的SQL例子：**
+
 **PublicMsg.db**
+
 查询指定公众号的所有文章（本地已接受的）
 `SELECT * FROM PublicMsg WHERE StrTalker=='gh_13508120ed24'`
 
@@ -578,13 +603,42 @@ POST /api/execsql
 `SELECT * FROM PublicMsg ORDER BY localId DESC limit 20,20;`
 
 **MicroMsg.db**
+
 查询通讯录所有成员（包括好友、群聊组、订阅号等）
 `SELECT * FROM Contact`
 
-#### 2.2.1.13、停止程序
+#### 2.2.1.14、lz4数据解码
+> 提交的数据需要经过`Base64 Encode`
+
+**协议信息**
+
+> 同时支持GET和POST
+
+GET /api/lz4decode?compressContent=xxxxxxxxxxx
+POST /api/lz4decode
+
+**别名**
+
+/api/lz4Decode
+
+/api/lz4-decode
+
+/api/lz4_decode
+
+**请求字段**
+
+* **JSON：**
+    * compressContent *string*：经过`Base64 Encode`的lz4压缩数据
+
+**响应字段**
+
+* content *string*：lz4解压缩后的数据
+
+#### 2.2.1.15、停止程序
 **协议信息**
 
 GET /close
+
 停止 `wxbot-sidecar`（此命令用来停止`http server`，并中止程序运行），当以静默方式运行时此命令可以比较方便的用来停止程序
 
 #### 2.2.2、回调注册类
@@ -711,6 +765,9 @@ curl -Method POST -ContentType "application/json" -Body '{"wxid":"47331170911@ch
 
 # 发送文件消息
 curl -Method POST -ContentType "application/json" -Body '{"wxid":"47331170911@chatroom", "file": "aGVsbG8gd29ybGQ=", "filename": "1.txt"}' http://127.0.0.1:8080/api/sendfilemsg
+
+# 注册普通消息回调
+curl -Method POST -ContentType "application/json" -Body '{"url":"http://127.0.0.1:8011", "timeout": 3000, "type": "general-msg"}' http://127.0.0.1:8080/api/syncurl
 ```
 
 **Linux**
@@ -737,8 +794,8 @@ curl -XPOST -H "Content-Type: application/json" -d'{"wxid": "47331170911@chatroo
 # 注册ws回调
 # 使用任意程序websocket客户端连接127.0.0.1:8080/ws
 
-# 注册http回调（http协议头不能少！）
-curl -XPOST -d'{"url": "http://127.0.0.1:8081/callback", "timeout": 6000}' 127.0.0.1:8080/api/sync-url
+# 注册http 普通消息回调（http协议头不能少！）
+curl -XPOST -d'{"url": "http://127.0.0.1:8081/callback", "timeout": 6000, "type": "general-msg"}' 127.0.0.1:8080/api/sync-url
 
 # 获取当前已注册的http回调
 curl 127.0.0.1:8080/api/sync-url
