@@ -46,17 +46,37 @@ Options:
 > 在 `Linux` 下使用 `Docker` 部署 `Wechat` + `wxbot` 全部流程已经跑通了，目前构建的公共镜像测试时间不长稳定性未知，建议各位使用时先测试
 > 构建方式在`docker`路径下查看`README.md`和`Dockerfile`
 ```shell
-# 运行
-$ docker run -itd --name wxbot -e WXBOT_ARGS="-q xxx" registry.cn-shanghai.aliyuncs.com/jwping/wxbot:v1.10.0-3.9.8.25
-# 如果希望将微信的数据持久化出来（包括指定wxbot.json），请使用-v参数把/home/wxbot目录映射出来
-$ docker run -itd --name wxbot -e WXBOT_ARGS="-q xxx" -v xxxx:/home/wxbot registry.cn-shanghai.aliyuncs.com/jwping/wxbot:v1.10.0-3.9.8.25
+ENV：
+  WXBOT_ARGS：wxbot的运行参数，默认已经指定了-w和-b参数
+  WINEPREFIX：指定wine运行的目录（一些驱动文件、程序目录的存放地址），基本无需变动
 
-# 查看登陆URL，可通过二维码在线生成工具将登陆URL转为二维码后使用手机扫码登陆
+# 运行
+# -e 指定环境变量
+# -p 指定端口映射，这里是将本地环境的8080端口映射到容器内的8080端口，可按需更改
+$ docker run -itd --name wxbot -e WXBOT_ARGS="-q xxx" -p 8080:8080 registry.cn-shanghai.aliyuncs.com/jwping/wxbot:v1.10.1-3.9.8.25
+# 如果希望将微信的数据持久化出来（包括指定wxbot.json），请使用-v参数把/home/wxbot目录映射出来
+$ docker run -itd --name wxbot -e WXBOT_ARGS="-q xxx" -p 8080:8080 -v xxxx:/home/wxbot registry.cn-shanghai.aliyuncs.com/jwping/wxbot:v1.10.1-3.9.8.25
+
+# 可能会刷一些错误日志，不用担心，不影响使用
+# 查看登陆URL，可通过百度随便找个二维码在线生成工具将登陆URL转为二维码后使用手机扫码登陆
+# wxbot第一次运行时需要进行一些初始化动作，时间会较久（大约3-5分钟），此命令会占用shell不断输出，5分钟内无输出也可能是正常的，等待它初始化完成后输出登陆地址即可
+# 二维码扫描确认登陆后也需要一段时间才会触发服务端口监听（因为微信也有一些初始化动作），期间他也会一致刷登陆URL，这是正常的，后面再次启动就不需要了
+# 直到日志出现Http Server Listen 0.0.0.0:8080，那么就可以进行访问验证了
 $ docker logs -f wxbot
+
+# 如果最终日志输出报错：
+Manager Init Base faild: -3
+Please review the logs and provide feedback
+Manager init faild: -1
+
+那么这可能是您当前的docker版本较低（> 20.10.8），或者在docker run时添加--security-opt seccomp=unconfined参数，完整运行命令如下：
+$ docker run -itd --name wxbot -e WXBOT_ARGS="-q xxx" -p 8080:8080 --security-opt seccomp=unconfined registry.cn-shanghai.aliyuncs.com/jwping/wxbot:v1.10.1-3.9.8.25
 
 # docker运行微信是加了自动登陆点击的，所以对于二次及以上的运行会自动触发登陆，只需要等待手机上弹出登录框即可，如果启动长时间无响应请使用下面的命令重启
 $ docker restart wxbot
 ```
+
+### 
 
 ## 2、使用
 > 如果您在使用时遇到了缺少运行库的报错
@@ -167,6 +187,7 @@ $ docker restart wxbot
 
 **路由列表概览：**
 * **功能类**
+  * **/api/checklogin**        - 检查登陆状态
   * **/api/userinfo**          - 获取登陆用户信息
   * **/api/contacts**          - 获取通讯录信息（wxid从这个接口获取），**不建议使用，请使用下面的`/api/dbcontacts`**
   * **/api/dbcontacts**        - 从数据库中获取通讯录信息（wxid从这个接口获取）
@@ -191,6 +212,24 @@ $ docker restart wxbot
 #### 2.2.1、功能类接口
 > **以`[]`中括号括起来的字段为可选字段**
 > **目前所有请求和响应字段均按大驼峰命名法规范**
+
+##### 2.2.1.0、检查登陆状态
+**协议信息**
+
+GET /api/checklogin
+
+**别名**
+
+/api/checkLogin
+
+/api/check-login
+
+/api/check_login
+
+**响应字段**
+
+* status *string*: 1: 登陆正常，其余非1值都为异常状态
+* wxid *string*: 登陆用户wxid
 
 ##### 2.2.1.1、登陆用户信息
 **协议信息**
