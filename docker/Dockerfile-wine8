@@ -1,0 +1,20 @@
+FROM ubuntu:noble
+
+LABEL org.opencontainers.image.authors="anshan"
+MAINTAINER GIT:github.com/jwping/wxbot
+
+RUN apt update && apt install xvfb wine -y && useradd -ms /bin/bash wxbot
+
+USER wxbot
+
+WORKDIR /home/wxbot
+
+COPY --chown=wxbot:wxbot ./WeChat /home/wxbot/WeChat
+
+COPY --chown=wxbot:wxbot ./wxbot-sidecar.exe /home/wxbot
+
+COPY --chown=wxbot:wxbot ./start.sh /home/wxbot
+
+RUN chmod +x /home/wxbot/start.sh
+
+CMD ["/home/wxbot/start.sh"]
